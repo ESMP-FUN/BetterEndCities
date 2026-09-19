@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
-## [Unreleased]
+## [0.3.0] - 2026-09-19
 ### Added
 - **Minecraft 26.3 support, as its own download.** This is the `-mc263` jar; keep using `-mc26` on 26.1 and 26.2. Each download follows its own updates, so a 26.3 server is never offered a jar built for an older Minecraft. The `-mc26` jar still loads and works on 26.3, it just can't protect cushions.
 - **Cushions in a city are protected like anything else in it** (`-mc263` only). 26.3 added cushions, and a cushion is an entity rather than a block, so the protection that covers every block in a city didn't see them at all. A cushion can no longer be placed inside a protected city, or taken, blown up or knocked out of one, and `betterend.bypass.protection` still lets staff move one.
@@ -12,9 +12,10 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 ### Changed
 - **The plugin is now called Better End Cities.** A data pack of the same name has been on Modrinth far longer, and its author asked for the name back. The new name also says what the plugin actually does.
-  - The jar is now `BetterEndCities-<version>.jar`, and the plugin folder is `plugins/BetterEndCities/`.
+  - The jar is now `BetterEndCities-<version>-mc26.jar` (or `-mc263` on Minecraft 26.3), and the plugin folder is `plugins/BetterEndCities/`.
   - **Updating from 0.2.3 or earlier: rename your `plugins/BetterEnd/` folder to `plugins/BetterEndCities/` before starting the server.** It holds your city registrations, per-player loot state and snapshots. If you skip this, the plugin starts with an empty database and rediscovers cities from scratch, and your saved copies of looted cities are gone.
   - Commands and permissions are unchanged. `/betterend` and `betterend.*` still work exactly as before.
+- **The documentation, store pages and `config.yml` comments are rewritten in plain English.** Same information, written for a server owner rather than a developer, with the jargon taken out.
 
 ## [0.2.3] - 2026-07-20
 ### Fixed
