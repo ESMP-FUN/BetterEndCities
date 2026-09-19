@@ -43,6 +43,18 @@ The elytra item frame is protected separately and always, as part of the [claim 
 **"Whatever the block is" is deliberate.** There's no list of protected blocks to keep up to date. If it's part of the city, it's protected. That covers purpur, end stone bricks, chests, shulkers, banners, and anything a future Minecraft update adds.
 {% endhint %}
 
+### Cushions
+
+Minecraft 26.3 added cushions, and a cushion isn't a block. It's closer to a painting, so none of the above sees it, and without special handling a city nobody can build in could still be carpeted in cushions.
+
+The **`-mc263` download** handles them: a cushion can't be placed inside a city, taken, blown up or knocked out by a mob. Placing follows your "stop players building inside" setting and removing follows the main protection switch, so there's nothing extra to configure. Staff with `betterend.bypass.protection` can still move one.
+
+Cushions the game itself clears away, when one gets covered over or the block holding it up disappears, are left alone. Refusing those would strand a cushion that nothing could then remove.
+
+{% hint style="info" %}
+On the **`-mc26` download** cushions aren't protected, because it's built for 26.1 and 26.2 where they don't exist. If you're on 26.3, use `-mc263`.
+{% endhint %}
+
 ***
 
 ## Telling players why
