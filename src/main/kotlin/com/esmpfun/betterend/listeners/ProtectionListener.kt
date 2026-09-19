@@ -2,7 +2,11 @@ package com.esmpfun.betterend.listeners
 
 import com.esmpfun.betterend.BetterEnd
 import com.esmpfun.betterend.models.EndCity
+import io.papermc.paper.event.entity.EntityBreakByEntityEvent
+import io.papermc.paper.event.entity.EntityBreakEvent
+import org.bukkit.Location
 import org.bukkit.block.Block
+import org.bukkit.entity.Cushion
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
@@ -11,6 +15,7 @@ import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.block.BlockExplodeEvent
 import org.bukkit.event.block.BlockPlaceEvent
 import org.bukkit.event.entity.EntityExplodeEvent
+import org.bukkit.event.entity.EntityPlaceEvent
 
 /**
  * Griefing protection for registered End Cities — bounds-based per structure
@@ -70,6 +75,58 @@ class ProtectionListener(private val plugin: BetterEnd) : Listener {
         if (!enabled() || !plugin.isReady) return
         if (!plugin.config.getBoolean("protection.block-explosions", true)) return
         event.blockList().removeIf { isProtected(it) }
+    }
+
+    // ── cushions (26.3) ──────────────────────────────────────────────────────
+
+    /**
+     * A cushion is an entity, not a block, so none of the block handlers above
+     * ever see one — without this a city that can't be built in at all could
+     * still be carpeted in cushions.
+     */
+    private fun protectedCushionAt(location: Location): Boolean {
+        val city = plugin.cityManager.getCachedCityInPaddedRegion(location, pad()) ?: return false
+        return city.inStructurePiece(location, pad())
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    fun onCushionPlace(event: EntityPlaceEvent) {
+        if (!enabled() || !plugin.isReady) return
+        if (event.entity !is Cushion) return
+        if (!plugin.config.getBoolean("protection.block-place", true)) return
+        val player = event.player
+        if (player != null && player.hasPermission("betterend.bypass.protection")) return
+        if (!protectedCushionAt(event.entity.location)) return
+        event.isCancelled = true
+        player?.let { notifyDenied(it) }
+    }
+
+    /**
+     * Every way a cushion is removed arrives here: taken by hand, blown up,
+     * knocked out by a mob, covered over, or its support block going away.
+     *
+     * Only the first two are refused. OBSTRUCTION and PHYSICS are the game
+     * tidying up after itself, and refusing those would strand a cushion that
+     * nothing could then remove.
+     */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    fun onCushionBreak(event: EntityBreakEvent) {
+        if (!enabled() || !plugin.isReady) return
+        if (event.entity !is Cushion) return
+
+        val remover = (event as? EntityBreakByEntityEvent)?.remover
+        if (remover is Player && remover.hasPermission("betterend.bypass.protection")) return
+
+        when (event.cause) {
+            EntityBreakEvent.RemoveCause.ENTITY -> {}
+            EntityBreakEvent.RemoveCause.EXPLOSION ->
+                if (!plugin.config.getBoolean("protection.block-explosions", true)) return
+            else -> return
+        }
+
+        if (!protectedCushionAt(event.entity.location)) return
+        event.isCancelled = true
+        (remover as? Player)?.let { notifyDenied(it) }
     }
 
     private fun notifyDenied(player: Player) {

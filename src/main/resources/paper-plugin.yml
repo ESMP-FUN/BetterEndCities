@@ -1,7 +1,7 @@
 name: BetterEndCities
 version: '${version}'
 main: com.esmpfun.betterend.BetterEnd
-api-version: '26.1'
+api-version: '26.3'
 authors: [darkstarworks]
 description: Renewable End Cities, per-player elytra item frames, per-player loot and structure resets.
 website: https://github.com/ESMP-FUN/BetterEndCities

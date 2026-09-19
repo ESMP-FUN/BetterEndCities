@@ -18,15 +18,14 @@ repositories {
 }
 
 dependencies {
-    // Paper API — the 26.1-26.2 track (the `-mc26` build). Built against the
-    // OLDEST supported line (26.1.2 stable) so 26.2-only API can't slip in;
-    // api-version '26.1' in paper-plugin.yml is a floor, so this jar loads on
-    // 26.1.x and 26.2 alike. Everything it touches (dialogs, structure API,
-    // PlayerItemFrameChangeEvent, events) exists in 26.1.2.
+    // Paper API — the 26.3 track (the `-mc263` build). api-version '26.3' in
+    // paper-plugin.yml keeps this jar off 26.1/26.2 servers, which is what lets
+    // it use API that only exists here: org.bukkit.entity.Cushion and
+    // EntityBreakEvent, both new in 26.3 and both needed to protect cushions.
     //
-    // 26.3 lives on the `mc263` branch, which compiles against 26.3 for the
-    // cushion entity API that does not exist here.
-    compileOnly("io.papermc.paper:paper-api:26.1.2.build.72-stable")
+    // 26.1-26.2 lives on `main`, which compiles against 26.1.2 so that nothing
+    // newer can slip into that jar.
+    compileOnly("io.papermc.paper:paper-api:26.3.build.19-alpha")
 
     implementation("org.jetbrains.kotlin:kotlin-stdlib")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
@@ -46,10 +45,10 @@ dependencies {
     // Testing
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.1")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    testImplementation("io.papermc.paper:paper-api:26.1.2.build.72-stable")
+    testImplementation("io.papermc.paper:paper-api:26.3.build.19-alpha")
 }
 
-// MC 26.x runs on JDK 25; Paper 26.1.2 API classes are compiled to Java 25
+// MC 26.x runs on JDK 25; Paper 26.3 API classes are compiled to Java 25
 // (class file v69), so the build MUST run on a JDK 25 toolchain to read them.
 kotlin {
     jvmToolchain(25)
@@ -57,10 +56,10 @@ kotlin {
 
 tasks {
     shadowJar {
-        // The 26.1-26.2 build. The `mc263` branch produces the `-mc263` jar for
-        // 26.3 servers; api-version in paper-plugin.yml is what keeps each jar
-        // off the other's servers.
-        archiveClassifier.set("mc26")
+        // The 26.3 build. `main` produces the `-mc26` jar for 26.1-26.2;
+        // api-version in paper-plugin.yml is what keeps each jar off the
+        // other's servers.
+        archiveClassifier.set("mc263")
         // Kotlin stdlib / kotlinx-coroutines NOT relocated — Bukkit must find
         // kotlin.* at runtime. HikariCP relocated to avoid clashing with other
         // plugins' shaded copies.
