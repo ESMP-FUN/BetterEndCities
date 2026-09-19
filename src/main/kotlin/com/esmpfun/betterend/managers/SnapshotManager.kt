@@ -147,7 +147,12 @@ class SnapshotManager(private val plugin: BetterEnd) {
 
         val data = withContext(Dispatchers.IO) {
             try { CompressionUtil.decompressObject<SnapshotData>(file.readBytes()) }
-            catch (e: Exception) { plugin.logger.warning("[Snapshot] load failed for city #${city.id}: ${e.message}"); null }
+            catch (e: Exception) {
+                // An unreadable snapshot makes /betterend reset silently do nothing.
+                plugin.logger.warning("[Snapshot] load failed for city #${city.id}: ${e.message}")
+                com.esmpfun.betterend.integrations.MetricsService.reportHandled(e, "snapshot-load")
+                null
+            }
         } ?: return -1
 
         val world = plugin.server.getWorld(data.worldName) ?: run {

@@ -1,19 +1,19 @@
 # Storage
 
-BetterEnd stores city registrations, elytra claim history, and per-player loot copies in a database. SQLite by default, MySQL optionally.
+The plugin remembers which cities it has found, who has claimed an elytra where, and every player's loot copies. By default it keeps all this in a single file. You can point it at a MySQL database instead.
 
 ***
 
-## SQLite (default)
+## The default
 
 ```yaml
 database:
   type: sqlite
 ```
 
-Zero setup. A `database.db` file appears in `plugins/BetterEnd/` on first start and that's the end of it.
+Nothing to set up. A `database.db` file appears in `plugins/BetterEndCities/` on first start, and that's it.
 
-This is the right choice for the overwhelming majority of servers, including large single-server survival setups. SQLite is not a toy — it handles this workload comfortably.
+This is the right choice for almost every server, including large single-server survival ones. It handles this comfortably.
 
 ***
 
@@ -30,20 +30,20 @@ database:
     password: ""
 ```
 
-Connections are pooled (HikariCP). The console confirms which backend came up:
+The console tells you which one started:
 
 ```
-[BetterEnd] Database pool initialized (MYSQL)
+[BetterEndCities] Database pool initialized (MYSQL)
 ```
 
 {% hint style="warning" %}
-**An invalid `type` silently falls back to SQLite**, with a warning:
+**A misspelled `type` quietly falls back to the default file**, with this warning:
 
 ```
-[BetterEnd] Invalid database.type, defaulting to SQLITE
+[BetterEndCities] Invalid database.type, defaulting to SQLITE
 ```
 
-If you configured MySQL and see `SQLITE` in the console, check that line — a typo in `type` is the usual cause, and your MySQL settings will be ignored entirely.
+If you set up MySQL and see `SQLITE` in the console, look for that line. A typo in `type` is almost always the cause, and your MySQL settings are being ignored completely.
 {% endhint %}
 
 ### Setting it up
@@ -58,60 +58,60 @@ If you configured MySQL and see `SQLITE` in the console, check that line — a t
    ```
 
 2. Fill in `config.yml`
-3. Restart — tables are created automatically
+3. Restart. Everything it needs is created for you
 
 ***
 
 ## Which should you use?
 
-**Stay on SQLite unless you have a specific reason not to.** It's faster for a single server (no network round-trip), needs no maintenance, and backs up by copying one file.
+**Stay on the default unless you have a specific reason not to.** It's faster for a single server, needs no looking after, and backs up by copying one file.
 
 Switch to MySQL when:
 
-* **Multiple servers share one End** — the only genuinely compelling reason. Per-player loot and claim history stay consistent across a proxy network
-* **Your host requires it** — some managed hosts don't give you a persistent filesystem
-* **You already run centralised backups** through your database
+* **Several servers share one End.** This is the only really compelling reason. Loot copies and claim history then stay in step across your network
+* **Your host requires it.** Some managed hosts don't give you somewhere permanent to keep files
+* **You already back everything up through your database**
 
-Don't switch just because MySQL sounds more serious. For one server it's strictly more moving parts for no gain.
+Don't switch just because MySQL sounds more serious. For one server it's more things that can go wrong, for no benefit.
 
 ***
 
-## Migrating between backends
+## Switching between them
 
-There is no built-in migration command. Changing `database.type` starts from an **empty** database — cities re-register automatically as chunks load, but **elytra claim history and per-player loot copies are lost**.
+There's no built-in way to move your data across. Changing `database.type` starts from **empty**. Cities register themselves again as players travel, but **claim history and everyone's loot copies are lost**.
 
-In practice that means:
+In practice:
 
 * Players who had claimed an elytra can claim again
-* Everyone's per-player loot copies reset to fresh
+* Everyone's loot copies go back to fresh
 
 {% hint style="warning" %}
-**Plan the switch.** Do it during a quiet period, and tell players their End City loot will reset. On a `global` claim mode server this is more disruptive — everyone effectively gets a second elytra.
+**Plan the switch.** Do it during a quiet period, and tell players their End City loot will reset. If you use the `global` claim mode this hits harder, because everyone effectively gets a second elytra.
 {% endhint %}
 
-If you need a real migration, raise it on [Discord](https://discord.gg/qwYcTpHsNC).
+If you need a proper way to move the data across, say so on [Discord](https://discord.gg/qwYcTpHsNC).
 
 ***
 
-## What's stored
+## What's kept
 
-| Data | Notes |
+| What | Notes |
 |---|---|
-| **City registrations** | Bounds, pieces, world, ship presence. Regenerates automatically if lost |
-| **Elytra claims** | Which player claimed at which ship. Cannot be regenerated |
-| **Per-player loot** | Each player's private container copies, plus the shared templates |
-| **Loot cycles** | Each city's current refresh window |
+| **Which cities are registered** | Their size, towers, world, and whether there's a ship. Comes back on its own if lost |
+| **Elytra claims** | Which player claimed at which ship. Can't be recreated |
+| **Per-player loot** | Each player's private copies, and the originals they're copied from |
+| **Loot countdowns** | Where each city is in its cycle |
 
-**Snapshots are not in the database.** They're gzip files in `plugins/BetterEnd/snapshots/`, so a database of any size stays small.
+**Saved copies of cities are not in here.** They're separate files in `plugins/BetterEndCities/snapshots/`, so your database stays small no matter how many cities you have.
 
 ***
 
 ## Backups
 
-Back up the **whole `plugins/BetterEnd/` folder**, not just the database — snapshots live alongside it and can't be regenerated once a city's blocks have changed.
+Back up the **whole `plugins/BetterEndCities/` folder**, not just the database. The saved copies of your cities live alongside it, and they can't be recreated once a city's blocks have changed.
 
-For MySQL setups, that's your usual database backup **plus** the `snapshots/` directory.
+If you use MySQL, that means your usual database backup **plus** the `snapshots/` folder.
 
 {% hint style="info" %}
-**City registrations are the cheap part.** If you lose them, cities re-register on their own. Claim history and snapshots are the parts worth protecting.
+**The list of cities is the cheap part.** If you lose it, cities register themselves again. Claim history and saved copies are the parts worth protecting.
 {% endhint %}

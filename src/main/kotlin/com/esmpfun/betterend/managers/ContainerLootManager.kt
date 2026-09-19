@@ -53,6 +53,7 @@ class ContainerLootManager(private val plugin: BetterEnd) {
             }
         } catch (e: Exception) {
             plugin.logger.warning("[ContainerLoot] Load failed (${pos.x},${pos.y},${pos.z}/$player): ${e.message}")
+            com.esmpfun.betterend.integrations.MetricsService.reportHandled(e, "container-loot-load")
             null
         }
     }
@@ -91,7 +92,9 @@ class ContainerLootManager(private val plugin: BetterEnd) {
                 }
             }
         } catch (e: Exception) {
+            // A save that didn't land loses whatever the player left in their copy.
             plugin.logger.warning("[ContainerLoot] Save failed (${pos.x},${pos.y},${pos.z}/$player): ${e.message}")
+            com.esmpfun.betterend.integrations.MetricsService.reportHandled(e, "container-loot-save")
         }
     }
 

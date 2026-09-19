@@ -1,25 +1,39 @@
 # Installation
 
-Drop a jar in a folder, restart. That's the whole thing — there's no per-city setup to do afterwards.
+Drop a jar in a folder, restart. That's the whole thing. There's no per-city setup to do afterwards.
 
-## Prerequisites
+## Before you start
 
-* **Minecraft 26.1 or newer** — Paper, Folia, or Purpur
+* **Minecraft 26.1 or newer**, on Paper, Folia, or Purpur
 * **Java 25 or newer**
 
 {% hint style="warning" %}
-**26.x only.** BetterEnd uses the native Dialog API and reads the server's structure data directly. Neither exists on 1.21.x, so there is no 1.21 build and the plugin will not load on one. If you need 1.21 support, say so on Discord — it's a rewrite of two subsystems, not a version bump, so it depends on demand.
+**Minecraft 26 only.** This plugin uses pop-up menus and world information that don't exist in 1.21, so there is no 1.21 build and it will not start on one. If you need 1.21 support, say so on Discord. It's a rewrite of two large parts of the plugin rather than a quick version bump, so it depends on how many people ask.
 {% endhint %}
 
 {% hint style="info" %}
-**Why Java 25?** Minecraft 26.x runs on it. Paper 26.1's API classes are compiled to Java 25 bytecode, so an older JVM can't even read them.
+**Why Java 25?** Minecraft 26 runs on it. Paper 26.1 is built for Java 25, so an older Java can't read it at all.
 {% endhint %}
 
 ## Download
 
-* [GitHub Releases](https://github.com/ESMP-FUN/BetterEnd/releases) — every version, with changelogs
+* [GitHub Releases](https://github.com/ESMP-FUN/BetterEndCities/releases) - every version, with changelogs
 
-Look for `BetterEnd-<version>.jar`.
+**There are two downloads. Pick the one for your Minecraft version:**
+
+| Your server | Download |
+|---|---|
+| Minecraft 26.1 or 26.2 | `BetterEndCities-<version>-mc26.jar` |
+| Minecraft 26.3 or newer | `BetterEndCities-<version>-mc263.jar` |
+
+The 26.3 download adds protection for cushions, which 26.3 introduced and which the older download can't know about. Apart from that the two are the same.
+
+Get it wrong and nothing breaks either way:
+
+* **`-mc263` on a 26.1 or 26.2 server** won't load at all, and the console says why. Swap the jar and restart.
+* **`-mc26` on a 26.3 server** loads and works normally, you just don't get cushion protection. Swap it when convenient.
+
+The built-in update check knows which one your server needs and only ever offers you that one.
 
 ## Installation steps
 
@@ -27,14 +41,14 @@ Look for `BetterEnd-<version>.jar`.
 
 Properly, with `/stop`.
 
-### 2. Drop the jar
+### 2. Drop the jar in
 
-Move `BetterEnd-<version>.jar` into your server's `plugins/` folder.
+Move the jar you downloaded into your server's `plugins/` folder.
 
 ```
 your-server/
 ├── plugins/
-│   ├── BetterEnd-<version>.jar   ← here
+│   ├── BetterEndCities-<version>-mc26.jar   <- here
 │   └── ... other plugins
 └── ...
 ```
@@ -44,58 +58,58 @@ your-server/
 Watch the console:
 
 ```
-[BetterEnd] BetterEnd starting on Paper...
-[BetterEnd] Database pool initialized (SQLITE)
-[BetterEnd] Loaded 0 End Cities into cache
-[BetterEnd] BetterEnd ready.
-[BetterEnd] FastStats Metrics: Enabled
+[BetterEndCities] Better End Cities starting on Paper...
+[BetterEndCities] Database pool initialized (SQLITE)
+[BetterEndCities] Loaded 0 End Cities into cache
+[BetterEndCities] Better End Cities ready.
+[BetterEndCities] FastStats Metrics: Enabled
 ```
 
-`BetterEnd ready.` deliberately comes before the metrics line — the plugin is fully operational at that point, and the optional integrations start after it.
+`Better End Cities ready.` comes before the metrics line on purpose. The plugin is fully working at that point, and the optional extras start afterwards.
 
-`Loaded 0 End Cities` is correct on a first start — cities register themselves as players travel, not up front.
+`Loaded 0 End Cities` is correct on a first start. Cities register themselves as players travel, not up front.
 
 {% hint style="success" %}
 **Seeing errors instead?** Check [Troubleshooting](../troubleshooting.md).
 {% endhint %}
 
-### 4. Check the data folder
+### 4. Check the folder it made
 
-BetterEnd creates `plugins/BetterEnd/`:
+Better End Cities creates `plugins/BetterEndCities/`:
 
 ```
-plugins/BetterEnd/
-├── config.yml       # Main configuration (also editable in-game)
-├── database.db      # SQLite database (default storage)
-└── snapshots/       # Block snapshots, one file per city
+plugins/BetterEndCities/
+├── config.yml       # Settings (also changeable in-game)
+├── database.db      # Where cities and loot are remembered
+└── snapshots/       # A saved copy of each city
 ```
 
-Two more files appear only when relevant:
+Two more files appear only when they're needed:
 
-* `materials.yml` — written when [BetterAntiDupe](https://github.com/ESMP-FUN/BetterAntiDupe) is installed, listing the materials it tracks
-* `ownership-key` — the AntiDupe ownership key marker
+* `materials.yml` - written when [Better Anti-Dupe](https://github.com/ESMP-FUN/BetterAntiDupe) is installed, listing the items it watches
+* `ownership-key` - a marker used by Better Anti-Dupe
 
 You don't need to open any of them. Everything in `config.yml` can be changed in-game.
 
-## Verify it's working
+## Check it's working
 
 ```
 /betterend
 ```
 
-The config menu opens as a native dialog. If it does, you're installed.
+The settings menu opens as a pop-up. If it does, you're installed.
 
-Prefer to check from console? `/betterend list` works there too and prints the discovered-city list (empty on a fresh install).
+Prefer to check from the console? `/betterend list` works there too, and prints the list of cities found so far (empty on a fresh install).
 
 {% hint style="success" %}
-**Next:** [Quick Start](quick-start.md) — what's already running, and how to see it happen in-game.
+**Next:** [Quick Start](quick-start.md), what's already running and how to see it happen in-game.
 {% endhint %}
 
-## Optional: BetterAntiDupe
+## Optional: Better Anti-Dupe
 
-If you run [BetterAntiDupe](https://github.com/ESMP-FUN/BetterAntiDupe), BetterEnd detects it automatically. Claimed elytras are pre-stamped with the claiming player's ownership tag, so a renewable elytra never looks like a duplicate to ADP.
+If you run [Better Anti-Dupe](https://github.com/ESMP-FUN/BetterAntiDupe), Better End Cities spots it automatically. Claimed elytras are marked as belonging to the player who claimed them, so a renewable elytra never looks like a copy.
 
-Nothing to configure — install both and it works. The cost-item picker also warns you if you choose a material ADP tracks.
+Nothing to set up. Install both and it works. The cost-item picker also warns you if you choose an item Better Anti-Dupe watches.
 
 ## Updating
 
@@ -103,19 +117,19 @@ Nothing to configure — install both and it works. The cost-item picker also wa
 2. Replace the old jar with the new one
 3. Start the server
 
-Missing database tables are created on start, and your existing `config.yml` is left exactly as it is.
+Anything missing in the database is created on start, and your existing `config.yml` is left exactly as it is.
 
 {% hint style="info" %}
-**New options don't appear in an existing `config.yml`.** The file is only written when it's missing, so options added in a later version won't show up in yours — they just run on their built-in defaults, which are always the sensible ones.
+**New settings don't appear in an existing `config.yml`.** The file is only written when it's missing, so settings added in a later version won't show up in yours. They simply run on their built-in defaults, which are always the sensible ones.
 
-If you want to see and change a newly added option, either add the key by hand (the [config.yml reference](../configuration/config.yml.md) lists them all) or use `/betterend` — the menu always shows every current setting regardless of what's in the file.
+To see and change a newly added setting, either add the line by hand (the [config.yml reference](../configuration/config.yml.md) lists them all) or use `/betterend`. The menu always shows every current setting, whatever is in the file.
 {% endhint %}
 
 {% hint style="warning" %}
-**Back up first.** Copy `plugins/BetterEnd/` somewhere safe before updating — it holds your city registrations, per-player loot state, and snapshots.
+**Back up first.** Copy `plugins/BetterEndCities/` somewhere safe before updating. It holds which cities you've found, who has looted what, and the saved copies of each city.
 {% endhint %}
 
-BetterEnd also ships with update checking built in. `/betterend update` checks for a new release, and can download and stage it for your next restart. See [Commands](../reference/commands.md#betterend-update).
+Better End Cities can also check for updates itself. `/betterend update` looks for a new release and can download it ready for your next restart. See [Commands](../reference/commands.md#betterend-update).
 
 ## What's next?
 
@@ -128,13 +142,13 @@ BetterEnd also ships with update checking built in. `/betterend update` checks f
 ## Quick tips
 
 {% hint style="info" %}
-**Folia:** supported out of the box. BetterEnd detects Folia at startup and routes scheduler calls to the regional schedulers — the console line tells you which it found (`starting on Folia...`).
+**Folia:** supported out of the box, with nothing to switch on. The console line tells you which server type was found (`starting on Folia...`).
 {% endhint %}
 
 {% hint style="info" %}
-**MySQL:** SQLite is the default and needs no setup. For networks sharing state across servers, switch to MySQL in [config.yml](../configuration/storage.md).
+**MySQL:** not needed. The default storage needs no setup at all. If you run several servers that should share their cities, switch to MySQL in [config.yml](../configuration/storage.md).
 {% endhint %}
 
 {% hint style="info" %}
-**Existing worlds are fine.** Cities that were already looted still register and still get protection, snapshots and per-player loot. Players who already took an elytra before you installed BetterEnd can claim again — the claim history starts empty.
+**Existing worlds are fine.** Cities that were already looted still register, and still get protection, saved copies and per-player loot. Players who already took an elytra before you installed this can claim one again, because the plugin starts with no history of who has claimed what.
 {% endhint %}

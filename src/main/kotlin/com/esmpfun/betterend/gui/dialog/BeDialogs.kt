@@ -111,7 +111,7 @@ object BeDialogs {
             player.sendMessage(Component.text("Settings saved & applied.", NamedTextColor.GREEN))
         }
 
-        val back = button("Back", NamedTextColor.YELLOW, "Return to the BetterEnd menu (without saving)") { _ ->
+        val back = button("Back", NamedTextColor.YELLOW, "Return to the Better End Cities menu (without saving)") { _ ->
             plugin.scheduler.runAtEntity(player, Runnable {
                 if (player.isOnline) openMainMenu(plugin, player)
             })
@@ -224,7 +224,7 @@ object BeDialogs {
         val costLine = if (cost == null) "Claims are currently free."
         else "A claim currently costs ${cost.amount} × ${cost.type.name.lowercase().replace('_', ' ')}."
 
-        val base = DialogBase.builder(Component.text("BetterEnd", NamedTextColor.DARK_AQUA))
+        val base = DialogBase.builder(Component.text("Better End Cities", NamedTextColor.DARK_AQUA))
             .body(
                 listOf(
                     "Renewable End Cities: every player earns their own elytra",

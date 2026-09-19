@@ -1,44 +1,44 @@
-# City Discovery
+# Finding Cities
 
-End Cities register themselves. There is no command to run per city, no region to select, and no approval step.
+End Cities register themselves. There's no command to run for each city, no area to select, and nothing to approve.
 
 ***
 
 ## How it works
 
-When a chunk containing an End City loads, BetterEnd asks the **server's own structure data** for that city's exact bounds and pieces, then registers it.
+When a player gets close enough to an End City for it to load in, Better End Cities asks **the world itself** for that city's exact shape and its list of towers, then registers it.
 
-Because it reads the structure data rather than scanning blocks, discovery is:
+Because it reads the world's own information rather than scanning blocks, finding a city is:
 
-* **Exact** — real piece bounds, not a guessed bounding box
-* **Complete in one pass** — every tower and bridge, plus the ship if the city has one
-* **Cheap** — a data lookup, not a block-by-block sweep
-* **Immune to looting** — a city stripped bare still registers correctly, because the structure data doesn't change when blocks do
+* **Exact.** The real shape of every tower, not a guessed box around it
+* **Complete straight away.** Every tower and bridge, plus the ship if the city has one
+* **Cheap.** A quick lookup, not a block-by-block search
+* **Unaffected by looting.** A city stripped bare still registers correctly, because what the world knows about it doesn't change when blocks do
 
-A discovered city is **active immediately**. Loot, elytra frames, protection and snapshots all start working the moment it registers — there's no pending state to approve.
+A city starts working **the moment it's found**. Loot, elytra frames, protection and saved copies are all active immediately. There's no waiting list to approve.
 
 ```
-[BetterEnd] Discovered End City #1 in world_the_end (1264,0,-368)..(1329,100,-303), 14 pieces
+[BetterEndCities] Discovered End City #1 in world_the_end (1264,0,-368)..(1329,100,-303), 14 pieces
 ```
 
-Ops with `betterend.discovery.notify` also get a clickable in-game message that teleports them to the city.
+Ops with `betterend.discovery.notify` also get a message in chat they can click to teleport there.
 
 ***
 
-## The startup sweep
+## The check at startup
 
 ```yaml
 discovery:
   startup-sweep: true
 ```
 
-Discovery normally rides on chunk-load events. But chunks already resident when the plugin enables never fire one — so on a restart, a city sitting in a loaded chunk would be missed.
+Normally a city is found when it loads in. But parts of the world that were already loaded when the plugin started never "load in" again, so a city sitting in one would be missed after a restart.
 
-The startup sweep scans already-loaded chunks once at enable to catch them. On by default; only turn it off if you've measured it slowing startup.
+The startup check looks over those already-loaded areas once, to catch them. On by default. Only turn it off if you've actually measured it slowing your startup down.
 
 ***
 
-## Excluding worlds
+## Leaving a world alone
 
 ```yaml
 discovery:
@@ -47,55 +47,55 @@ discovery:
     - resource_end
 ```
 
-World names, case-insensitive. Cities in these worlds are never registered and behave exactly like vanilla.
+World names, and capital letters don't matter. Cities in these worlds are never registered and behave exactly like vanilla.
 
-Useful when you run a managed End and a resource End, and only want one of them renewable.
+Useful when you run one managed End and one resource End, and only want one of them renewable.
 
 {% hint style="info" %}
-**Excluding a world doesn't unregister what's already in it.** Cities registered before the exclusion keep working. Remove them explicitly:
+**Excluding a world doesn't undo what's already registered in it.** Cities registered before you excluded it keep working. Remove them yourself:
 
 ```
-/betterend list          # find the ids
-/betterend delete <id>   # unregister each
+/betterend list          # find the numbers
+/betterend delete <id>   # remove each one
 ```
 {% endhint %}
 
 ***
 
-## Turning discovery off
+## Turning it off
 
 ```yaml
 discovery:
   enabled: false
 ```
 
-No new cities register. Already-registered cities keep working normally.
+No new cities register. Cities already registered keep working normally.
 
-There is **no manual registration command** — BetterEnd is built around structure data, so a city that doesn't exist in the world's structure data can't be registered. That means:
+There's **no command to register a city by hand**, because the plugin works from what the world knows about its own structures. A city the world has no record of can't be registered. That means:
 
-* **Naturally generated cities** — always work
-* **Player-built replica cities** — can't be registered
-* **Custom worldgen / datapack End Cities** — work if they generate as real structures with structure data; don't if they're pasted schematics
+* **Cities that generated naturally** always work
+* **Cities a player built by hand** can't be registered
+* **Cities from a datapack or custom world generation** work if they generate as real structures, and don't if they were pasted in from a schematic
 
 {% hint style="info" %}
-Building a custom End City by hand and wanting BetterEnd to manage it is a reasonable ask that isn't currently supported. If you need it, raise it on [Discord](https://discord.gg/qwYcTpHsNC).
+Building a custom End City by hand and wanting the plugin to manage it is a fair thing to want, and isn't supported today. If you need it, say so on [Discord](https://discord.gg/qwYcTpHsNC).
 {% endhint %}
 
 ***
 
-## Inspecting cities
+## Looking at your cities
 
 | Command | Shows |
 |---|---|
-| `/betterend list` | Every registered city, with ids |
-| `/betterend info <id>` | Bounds, piece count, ship present, snapshot status, loot cycle |
-| `/betterend tp <id>` | Teleport to that city |
-| `/betterend delete <id>` | Unregister it |
+| `/betterend list` | Every registered city, with its number |
+| `/betterend info <id>` | Size, how many towers, whether there's a ship, whether a copy is saved, and its loot countdown |
+| `/betterend tp <id>` | Teleport there |
+| `/betterend delete <id>` | Stop managing it |
 
-City ids are simple incrementing numbers, and every command that takes one offers tab completion.
+City numbers just count up from 1, and every command that takes one will complete it for you when you press Tab.
 
 {% hint style="warning" %}
-**`delete` unregisters, it doesn't demolish.** The blocks stay exactly where they are — the city just stops being managed. It'll be re-discovered on the next chunk load unless you've also excluded its world or disabled discovery.
+**`delete` stops managing a city, it doesn't demolish it.** The blocks stay exactly where they are. The city will simply be found again next time it loads in, unless you've also excluded its world or turned finding cities off.
 {% endhint %}
 
 ***

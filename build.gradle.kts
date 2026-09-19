@@ -18,11 +18,14 @@ repositories {
 }
 
 dependencies {
-    // Paper API — targets ALL of MC 26.x with one jar. Built against the OLDEST
-    // supported line (26.1.2 stable) so 26.2-only API can't slip in; api-version
-    // '26.1' in paper-plugin.yml is a minimum, so the jar loads on 26.1.x and
-    // 26.2+ alike. Everything BetterEnd touches (dialogs, structure API,
+    // Paper API — the 26.1-26.2 track (the `-mc26` build). Built against the
+    // OLDEST supported line (26.1.2 stable) so 26.2-only API can't slip in;
+    // api-version '26.1' in paper-plugin.yml is a floor, so this jar loads on
+    // 26.1.x and 26.2 alike. Everything it touches (dialogs, structure API,
     // PlayerItemFrameChangeEvent, events) exists in 26.1.2.
+    //
+    // 26.3 lives on the `mc263` branch, which compiles against 26.3 for the
+    // cushion entity API that does not exist here.
     compileOnly("io.papermc.paper:paper-api:26.1.2.build.72-stable")
 
     implementation("org.jetbrains.kotlin:kotlin-stdlib")
@@ -54,7 +57,10 @@ kotlin {
 
 tasks {
     shadowJar {
-        archiveClassifier.set("")
+        // The 26.1-26.2 build. The `mc263` branch produces the `-mc263` jar for
+        // 26.3 servers; api-version in paper-plugin.yml is what keeps each jar
+        // off the other's servers.
+        archiveClassifier.set("mc26")
         // Kotlin stdlib / kotlinx-coroutines NOT relocated — Bukkit must find
         // kotlin.* at runtime. HikariCP relocated to avoid clashing with other
         // plugins' shaded copies.

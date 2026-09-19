@@ -1,12 +1,12 @@
 # config.yml
 
-The complete reference for `plugins/BetterEnd/config.yml`.
+Every setting in `plugins/BetterEndCities/config.yml`.
 
 {% hint style="info" %}
-**You may never need this page.** Everything here is editable in-game through [the config menu](../getting-started/config-menu.md), and in-game changes are written back to this file. This is the reference for people who prefer YAML.
+**You may never need this page.** Everything here can be changed in-game from [the settings menu](../getting-started/config-menu.md), and those changes are written back to this file. This page is for people who'd rather edit the file.
 {% endhint %}
 
-After editing the file by hand, run `/betterend reload`.
+After editing by hand, run `/betterend reload`. Lost the file? Delete it and restart, and a fresh one is written with every default.
 
 ***
 
@@ -23,12 +23,12 @@ database:
     password: ""
 ```
 
-| Key | Default | Description |
+| Setting | Default | What it does |
 |---|---|---|
-| `type` | `sqlite` | `sqlite` (zero-setup) or `mysql`. Invalid values fall back to SQLite with a console warning |
-| `mysql.*` | — | Ignored entirely when `type: sqlite` |
+| `type` | `sqlite` | `sqlite` needs no setup. `mysql` is for several servers sharing one End. A misspelling falls back to `sqlite` with a console warning |
+| `mysql.*` | | Ignored completely when `type` is `sqlite` |
 
-Full details, including when MySQL is worth it: [Storage](storage.md).
+[More: Storage](storage.md)
 
 ***
 
@@ -41,15 +41,15 @@ discovery:
   excluded-worlds: []
 ```
 
-| Key | Default | Description |
+| Setting | Default | What it does |
 |---|---|---|
-| `enabled` | `true` | Auto-register End Cities as their chunks load. Discovered cities are active immediately |
-| `startup-sweep` | `true` | Sweep already-loaded chunks at enable, so cities resident at startup aren't missed |
-| `excluded-worlds` | `[]` | World names (case-insensitive) where cities are never registered |
+| `enabled` | `true` | Register End Cities automatically as players travel near them |
+| `startup-sweep` | `true` | Check areas already loaded when the server started, so cities there aren't missed |
+| `excluded-worlds` | `[]` | World names where cities are never registered. Capital letters don't matter |
 
-Cities registered before a world was excluded keep working — remove them with `/betterend delete <id>`.
+Cities registered before you excluded a world keep working. Remove them with `/betterend delete <id>`.
 
-[More → City Discovery](../guides/city-discovery.md)
+[More: Finding Cities](../guides/city-discovery.md)
 
 ***
 
@@ -65,25 +65,19 @@ elytra:
   text-display: true
 ```
 
-| Key | Default | Description |
+| Setting | Default | What it does |
 |---|---|---|
-| `enabled` | `true` | The renewable elytra frame system |
-| `claim-mode` | `per-ship` | `per-ship`, `per-refresh`, or `global` — see below |
-| `cost.item` | `""` | The cost item as a Base64 stack. **Set in-game**, not by hand |
-| `cost.amount` | `0` | How many the claim consumes. `0` = free |
-| `text-display` | `true` | Float a hint above the frame (cost, or "Punch to claim") |
-
-**Claim modes:**
-
-* `per-ship` — each player can claim one elytra from each ship, ever
-* `per-refresh` — claims reset when that city's loot refresh window rolls over
-* `global` — each player can claim one elytra total, across all ships
+| `enabled` | `true` | Renewable elytra frames, on or off |
+| `claim-mode` | `per-ship` | `per-ship`: one per player per ship, ever. `per-refresh`: claimable again whenever that city's loot comes back. `global`: one per player in total, across every ship |
+| `cost.item` | `""` | What a claim costs. **Set this in-game**, not by hand |
+| `cost.amount` | `0` | How many it takes. `0` means free |
+| `text-display` | `true` | Float a small note above the frame showing the cost, or "Punch to claim" |
 
 {% hint style="warning" %}
-`cost.item` is a serialized item stack, not a material name. Use `/betterend` → **Choose Cost Item**; hand-editing it will not work.
+`cost.item` stores a whole item, not just an item name. Use `/betterend`, **Choose Cost Item**. Editing it by hand will not work.
 {% endhint %}
 
-[More → Elytra Claims](../guides/elytra-claims.md)
+[More: Elytra Claims](../guides/elytra-claims.md)
 
 ***
 
@@ -95,18 +89,16 @@ loot:
   refresh-hours: 12
 ```
 
-| Key | Default | Description |
+| Setting | Default | What it does |
 |---|---|---|
-| `enabled` | `true` | Per-player container loot (Lootr-style) |
-| `refresh-hours` | `12` | Per-city refresh window in hours. `0` = never refresh |
+| `enabled` | `true` | Every player gets their own copy of a city's chests |
+| `refresh-hours` | `12` | How long before a city's loot comes back. `0` means never |
 
-The window is **per city and lazy**: the first player to loot a city with no active (or an expired) cycle starts a fresh window for that city. When it elapses, the next looter triggers the refresh. Cities never all refresh at once, and unvisited cities do no work.
+Each city counts down on its own, starting when someone first loots it, so cities never all refresh at once and cities nobody visits do no work. Only chests that came with the city count. Chests players place stay completely normal.
 
-Only containers inside the generated structure are treated as city loot — player-placed chests keep vanilla behaviour.
+The in-game slider goes up to 168 hours, which is one week. Larger numbers are accepted in the file.
 
-The in-game slider ranges from 0 to 168 hours (one week). Larger values are accepted in the file.
-
-[More → Per-Player Loot](../guides/per-player-loot.md)
+[More: Per-Player Loot](../guides/per-player-loot.md)
 
 ***
 
@@ -121,21 +113,21 @@ protection:
   notify-denied: true
 ```
 
-| Key | Default | Description |
+| Setting | Default | What it does |
 |---|---|---|
-| `enabled` | `true` | Grief protection master toggle |
-| `piece-padding` | `3` | Blocks to expand each structure piece by, covering edge decoration and a thin shell |
-| `block-place` | `true` | Deny placing blocks inside a protected piece |
-| `block-explosions` | `true` | Protect structure blocks from creeper/TNT/other explosions |
-| `notify-denied` | `true` | Show an action-bar message when a break or place is denied |
+| `enabled` | `true` | Grief protection, the main switch |
+| `piece-padding` | `3` | How many blocks protection reaches past each tower, to cover its trim and decoration |
+| `block-place` | `true` | Stop players building inside a protected part of the city |
+| `block-explosions` | `true` | Protect city blocks from creepers, TNT and other explosions |
+| `notify-denied` | `true` | Show a message just above the hotbar when a break or build is blocked |
 
-Protection is **bounds-based per structure piece**, not one region around the city — the void between towers stays fully buildable.
+Each tower, bridge and the ship is protected separately rather than as one big box, so the space between them stays buildable.
 
 {% hint style="warning" %}
-`betterend.bypass.protection` defaults to **op**. Testing protection as an op will make it look broken.
+`betterend.bypass.protection` is given to **ops** by default. Testing protection while opped will make it look broken.
 {% endhint %}
 
-[More → Protection](../guides/protection.md)
+[More: Protection](../guides/protection.md)
 
 ***
 
@@ -148,17 +140,17 @@ snapshot:
   auto-reset-on-refresh: false
 ```
 
-| Key | Default | Description |
+| Setting | Default | What it does |
 |---|---|---|
-| `max-cells` | `3000000` | Hard cap on block cells per snapshot, to protect memory. Far above any real city |
-| `auto-capture` | `true` | Snapshot a city automatically on discovery, so a reset target always exists |
-| `auto-reset-on-refresh` | `false` | Also restore blocks when a city's loot cycle rolls over |
+| `max-cells` | `3000000` | A limit on how many blocks one saved copy may hold. Far larger than any real city |
+| `auto-capture` | `true` | Save a copy of each city as soon as it's found |
+| `auto-reset-on-refresh` | `false` | Also put the blocks back whenever a city's loot comes back |
 
 {% hint style="warning" %}
-**`auto-reset-on-refresh` is off for a reason.** A restore rewrites blocks and can suffocate or displace players standing inside, and erases anything built within the structure bounds. Turn it on if cities are farmable content; leave it off if players base in them.
+**`auto-reset-on-refresh` is off for a reason.** Putting blocks back rewrites the whole city, which can suffocate or shove aside players standing inside, and erases anything built in there. Turn it on if cities are just somewhere to farm. Leave it off if players make bases in them.
 {% endhint %}
 
-[More → Snapshots & Resets](../guides/snapshots-and-resets.md)
+[More: Saved Copies and Resets](../guides/snapshots-and-resets.md)
 
 ***
 
@@ -167,17 +159,21 @@ snapshot:
 ```yaml
 metrics:
   enabled: true
+  error-reporting: true
 ```
 
-Anonymous usage metrics via FastStats. No player data — aggregate config and feature usage only.
+| Setting | Default | What it does |
+|---|---|---|
+| `enabled` | `true` | Anonymous usage numbers. Nothing about your players, just which settings are in use. Setting this to `false` also turns off error reporting |
+| `error-reporting` | `true` | Report this plugin's own errors automatically, so bugs get fixed without you having to file them. Other plugins' errors are never captured, and addresses, file paths, database passwords and player UUIDs are stripped out first |
 
-[More → Metrics & Privacy](metrics.md)
+[More: Metrics and Privacy](metrics.md)
 
 ***
 
-## update _(optional, not in the default file)_
+## update *(optional, not in the default file)*
 
-Not written to `config.yml` by default — add it only if you want to change how update checking behaves. It overrides the values BetterEnd ships in `pluginpulse.yml`.
+Add this only if you want to change how update checking behaves. It overrides what the plugin ships with.
 
 ```yaml
 update:
@@ -185,14 +181,14 @@ update:
   check-interval-hours: 6
 ```
 
-| Key | Default | Description |
+| Setting | Default | What it does |
 |---|---|---|
-| `mode` | `notify` | `off`, `check-only`, `notify`, `download`, or `auto-stage` |
+| `mode` | `notify` | `off`, `check-only`, `notify` (tells admins, downloads nothing), `download`, or `auto-stage` |
 | `check-interval-hours` | `6` | How often to check |
 
-`notify` tells admins and downloads nothing. `download` and `auto-stage` fetch and stage updates for the next restart — nothing is ever swapped under a running server.
+`download` and `auto-stage` fetch updates and put them in place for the next restart. Nothing is ever swapped out underneath a running server.
 
-[More → Commands](../reference/commands.md#update-behaviour)
+[More: Commands](../reference/commands.md#how-much-it-does-on-its-own)
 
 ***
 
@@ -203,9 +199,7 @@ setup:
   completed: false
 ```
 
-Set to `true` automatically once the `/betterend setup` tour has been completed **or** skipped. While it's `false`, ops with `betterend.admin` get a one-time reminder on join.
-
-Set it back to `false` to make the reminder appear again.
+Set to `true` for you once the `/betterend setup` tour has been finished or skipped. While it's `false`, ops get a one-time reminder when they join. Set it back to `false` to see the reminder again.
 
 ***
 
@@ -216,57 +210,4 @@ debug:
   verbose-logging: false
 ```
 
-Verbose diagnostic logging. Noisy — turn it on to investigate an issue, then turn it back off. Useful output to attach to a bug report.
-
-***
-
-## Full default file
-
-```yaml
-database:
-  type: sqlite
-  mysql:
-    host: localhost
-    port: 3306
-    database: betterend
-    username: root
-    password: ""
-
-discovery:
-  enabled: true
-  startup-sweep: true
-  excluded-worlds: []
-
-elytra:
-  enabled: true
-  claim-mode: per-ship
-  cost:
-    item: ""
-    amount: 0
-  text-display: true
-
-loot:
-  enabled: true
-  refresh-hours: 12
-
-protection:
-  enabled: true
-  piece-padding: 3
-  block-place: true
-  block-explosions: true
-  notify-denied: true
-
-snapshot:
-  max-cells: 3000000
-  auto-capture: true
-  auto-reset-on-refresh: false
-
-metrics:
-  enabled: true
-
-setup:
-  completed: false
-
-debug:
-  verbose-logging: false
-```
+Extra logging for chasing down a problem. Very noisy, so turn it on, reproduce the problem, then turn it back off. The output is useful to attach to a bug report.

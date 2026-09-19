@@ -1,132 +1,132 @@
-# Snapshots & Resets
+# Saved Copies and Resets
 
-A snapshot is a saved copy of a city's blocks. With one, a city can be rebuilt exactly as it generated — undoing griefing, or making a looted city new again.
+The plugin keeps a saved copy of each city's blocks. With one, a city can be rebuilt exactly as it first generated, undoing griefing or making a looted city new again.
 
 ***
 
-## Automatic capture
+## Saved automatically
 
 ```yaml
 snapshot:
   auto-capture: true
 ```
 
-On by default. When a city is discovered, its blocks are captured to a gzip-compressed file, so a reset target always exists without anyone remembering to make one.
+On by default. When a city is found, a copy of its blocks is saved to a file, so there's always something to restore from without anyone having to remember to make one.
 
-Snapshots live in `plugins/BetterEnd/snapshots/`, one file per city:
+Copies live in `plugins/BetterEndCities/snapshots/`, one file per city:
 
 ```
-plugins/BetterEnd/snapshots/
+plugins/BetterEndCities/snapshots/
 ├── city_1.dat
 ├── city_2.dat
 └── city_3.dat
 ```
 
 {% hint style="info" %}
-**Capture happens at discovery**, which is normally before players reach the city — so the snapshot is of a pristine, unlooted structure. Discovering a city that players have already wrecked captures it wrecked; use `/betterend snapshot <id>` after repairing it to re-capture.
+**The copy is made when the city is found**, which is normally before players get to it, so it's a copy of an untouched city. If a city is found after players have already wrecked it, the copy is of the wrecked version. Repair it by hand, then run `/betterend snapshot <id>` to save a fresh copy.
 {% endhint %}
 
-### The cell cap
+### The size limit
 
 ```yaml
 snapshot:
   max-cells: 3000000
 ```
 
-A hard limit on how many block cells one snapshot may capture, guarding memory against pathological structures. ~3M is far above any real End City — you shouldn't ever need to change it.
+A limit on how many blocks one copy may hold, so a strange or enormous structure can't eat all your memory. Three million is far larger than any real End City, so you should never need to change it.
 
 ***
 
-## Manual snapshots
+## Saving a copy yourself
 
 ```
 /betterend snapshot <id>
 ```
 
-Captures (or re-captures) that city now. Use it after you've repaired a city by hand, or if `auto-capture` was off when it was discovered.
+Saves a new copy of that city right now, replacing any existing one. Use it after repairing a city by hand, or if automatic saving was switched off when the city was found.
 
 ***
 
-## Resetting
+## Resetting a city
 
 ```
 /betterend reset <id>
 ```
 
-Restores the city's blocks from its snapshot **and** clears everyone's per-player loot copies. The city is new again for every player.
+Puts the city's blocks back from its saved copy **and** clears everyone's loot copies. The city is new again for every player.
 
-Needs a snapshot to exist. `/betterend info <id>` tells you whether one does.
+There has to be a saved copy for this to work. `/betterend info <id>` tells you whether there is one.
 
 ***
 
-## Auto-restore on refresh
+## Putting blocks back on every refresh
 
 ```yaml
 snapshot:
   auto-reset-on-refresh: false
 ```
 
-**Off by default.** With it on, every [loot refresh](per-player-loot.md#the-refresh-window) also restores the city's blocks — so griefing and player modification are reverted on the same cycle as the loot.
+**Off by default.** With it on, every [loot refresh](per-player-loot.md#when-loot-comes-back) also rebuilds the city's blocks, so griefing and player changes are undone on the same schedule as the loot.
 
 {% hint style="warning" %}
-**Why it's off by default.** A restore rewrites blocks wholesale:
+**Why it's off by default.** Rebuilding rewrites the whole city at once:
 
-* Players standing inside can be suffocated or displaced
-* Anything a player built **inside the structure bounds** is erased
-* On a large city it's a burst of block writes
+* Players standing inside can be suffocated or shoved out of the way
+* Anything a player has built **inside the city** is erased
+* On a large city it's a lot of blocks changing at once
 
-None of that is a problem on a server where cities are content to be farmed. All of it is a problem where players treat cities as bases. So you choose.
+None of that matters on a server where cities are just something to go and farm. All of it matters where players treat cities as bases. So the choice is yours.
 {% endhint %}
 
-### When to turn it on
+### Turn it on when
 
-* Cities are a repeatable activity, not real estate
-* You want them pristine on every cycle without staff effort
-* You've told players not to build inside city structures
+* Cities are something players visit, not somewhere they live
+* You want them pristine every cycle without staff having to do anything
+* You've told players not to build inside cities
 
-### When to leave it off
+### Leave it off when
 
-* Players base in End Cities
-* You'd rather revert griefing manually, when you notice it
-* Your refresh window is short (frequent block rewrites add up)
+* Players make bases in End Cities
+* You'd rather undo griefing yourself, when you notice it
+* Your refresh time is short, so it would happen often
 
 ***
 
 ## Choosing what comes back
 
-The two settings combine into four sensible configurations:
+The two settings give you four sensible combinations:
 
-| `loot.refresh-hours` | `auto-reset-on-refresh` | Result |
+| `loot.refresh-hours` | `auto-reset-on-refresh` | What you get |
 |---|---|---|
-| `12` | `false` | **Default.** Loot returns; the structure stays as players left it |
-| `12` | `true` | Cities fully renew on a cycle — pristine every time |
+| `12` | `false` | **Default.** Loot comes back, the city stays as players left it |
+| `12` | `true` | Cities completely renew on a cycle, pristine every time |
 | `0` | `false` | One-shot cities. Each player loots once, ever |
-| `0` | `true` | Loot never returns, but blocks are still restorable manually |
+| `0` | `true` | Loot never comes back, but you can still rebuild the blocks by hand |
 
 ***
 
-## Surgical alternatives
+## Smaller options
 
-Full resets aren't always what you want:
+A full reset isn't always what you want:
 
-| Command | Restores blocks | Clears loot | Scope |
+| Command | Puts blocks back | Clears loot for | Affects |
 |---|---|---|---|
-| `/betterend reset <id>` | yes | everyone | Whole city |
+| `/betterend reset <id>` | yes | everyone | The whole city |
 | `/betterend resetloot <id> <player>` | no | one player | That player only |
-| `/betterend clearclaims <id>` | no | no | Elytra claims only |
+| `/betterend clearclaims <id>` | no | nobody | Elytra claims only |
 
-Use `resetloot` to compensate one player, and `clearclaims` to reopen a ship's elytra without touching anything else.
+Use `resetloot` to make it up to one player, and `clearclaims` to reopen a ship's elytra without touching anything else.
 
 ***
 
-## Storage
+## Where they're kept
 
-Snapshots are gzip-compressed and held on disk, not in the database, so they don't bloat SQLite or your MySQL instance. A typical city compresses to well under a megabyte.
+Saved copies are compressed and kept as files on disk rather than in the database, so they don't bloat your storage. A typical city compresses to well under a megabyte.
 
-Deleting a city with `/betterend delete <id>` unregisters it. Its snapshot file is no longer used, and `city_<id>.dat` can be removed by hand if you want the space back.
+Deleting a city with `/betterend delete <id>` stops the plugin managing it. Its saved copy is no longer used, and you can delete `city_<id>.dat` by hand if you want the space back.
 
 {% hint style="info" %}
-**Back up `plugins/BetterEnd/` before updating.** Snapshots are the one thing that can't be regenerated after a city has been looted or griefed — the structure data they captured is gone once the blocks change.
+**Back up `plugins/BetterEndCities/` before updating.** Saved copies are the one thing that can't be recreated once a city has been looted or griefed, because the original blocks are gone.
 {% endhint %}
 
 ***

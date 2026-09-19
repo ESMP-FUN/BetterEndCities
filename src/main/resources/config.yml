@@ -1,12 +1,15 @@
-# BetterEnd configuration
+# Better End Cities configuration
 #
-# Everything in here can also be changed in-game: /betterend (menu) or
-# /betterend setup (guided tour). In-game changes are written back to this file.
+# You don't have to edit this file. Everything in here can be changed in-game
+# with /betterend for the menu, or /betterend setup for a guided tour that asks
+# one question at a time. Changes you make in-game are written back to this file.
 
 database:
-  # 'sqlite' (default, zero-setup) or 'mysql'
+  # Where the plugin remembers your cities, who has claimed an elytra, and
+  # everyone's loot. 'sqlite' needs no setup at all and is right for almost
+  # every server. Use 'mysql' only if several servers need to share one End.
   type: sqlite
-  # MySQL settings (ignored when type: sqlite)
+  # Only used when type is 'mysql'. Ignored completely otherwise.
   mysql:
     host: localhost
     port: 3306
@@ -15,93 +18,125 @@ database:
     password: ""
 
 discovery:
-  # Auto-register naturally-generated End Cities as they load. Discovered
-  # cities are active immediately — loot, elytra frames and protection all
-  # start working without any manual step.
+  # Register End Cities automatically as players travel near them. A city starts
+  # working the moment it's found: loot, elytra frames and protection all switch
+  # on with nothing for you to do.
   enabled: true
-  # Run a sweep over already-loaded chunks on plugin enable so cities resident
-  # at startup are caught without waiting for a ChunkLoadEvent.
+  # Also check the parts of the world that were already loaded when the server
+  # started. Without this, a city sitting in one of them would be missed until
+  # the next restart.
   startup-sweep: true
-  # Worlds where BetterEnd never registers cities (case-insensitive world
-  # names). Useful when a second end-type world has End Cities you want to
-  # leave vanilla. Cities already registered in a world BEFORE it was excluded
-  # keep working — remove them with /betterend delete <id>.
+  # Worlds to leave completely alone. Capital letters don't matter. Useful when
+  # you have a second End world whose cities should behave exactly like vanilla.
+  # Cities already registered in a world BEFORE you added it here keep working;
+  # remove those yourself with /betterend delete <id>.
   excluded-worlds: []
 
 elytra:
-  # The ship's elytra item frame becomes renewable: punch it and an elytra
-  # goes straight into your inventory, while the frame (and its elytra) stays
-  # for the next player. The frame itself is protected from breaking.
+  # The ship's elytra item frame becomes renewable. Punch it and an elytra goes
+  # into your inventory, while the frame, and its elytra, stay there for the next
+  # player. Nobody can break the frame or knock the elytra out of it.
   enabled: true
-  # Who can claim, how often:
-  #   per-ship    — each player can claim one elytra from each ship, ever
-  #   per-refresh — claims reset when that city's loot refresh window rolls over
-  #   global      — each player can claim one elytra total, across all ships
+  # How often a player can claim:
+  #   per-ship     each player can claim one elytra from each ship, ever
+  #   per-refresh  players can claim again every time that city's loot comes back
+  #   global       each player can claim one elytra in total, across every ship
   claim-mode: per-ship
   cost:
-    # What a claim costs. Set the item in-game: /betterend menu → Elytra →
-    # "Choose cost item" (any item from your inventory, custom items included).
-    # Stored as a Base64 item stack; leave empty for free.
+    # What a claim costs. Set this in-game with /betterend, then "Choose cost
+    # item", and click any item in your inventory. Custom items from other
+    # plugins work too. Leave it empty for free claims.
+    #
+    # This stores a whole item, not just an item name, so editing it by hand
+    # will not work.
     item: ""
-    # How many of the item a claim consumes. 0 = free.
+    # How many of that item a claim takes. 0 means claims are free.
     amount: 0
-  # Float a small text hint above the ship's elytra frame (shows the cost, or
-  # "Punch to claim" when free).
+  # Float a small note above the ship's elytra frame, showing the cost, or
+  # "Punch to claim" when claims are free.
   text-display: true
 
 loot:
-  # Per-player container loot (Lootr-style). Each player gets their own private
-  # copy of a city container's contents; copies refresh per refresh-hours. Only
-  # containers inside the actual generated structure are treated as city loot —
-  # player-placed chests keep vanilla behaviour.
+  # Every player who opens a city chest gets their own private copy of what's
+  # inside, so the first player through no longer empties the city for everyone
+  # else. Only chests that came with the city count. Chests players place
+  # themselves stay completely normal and shared.
   enabled: true
-  # Per-city loot refresh window, in hours. The first player to loot a city with
-  # no active (or an expired) cycle starts a fresh window for THAT city; when it
-  # elapses, the next looter triggers a refresh (all copies cleared) and a new
-  # window begins. Per-city + lazy, so cities never all refresh at once. 0 =
-  # never refresh (per-player copies persist indefinitely).
+  # How many hours before a city's loot comes back.
+  #
+  # Each city counts down on its own, and only starts counting when someone
+  # first loots it. Once the time is up, the next player to arrive triggers the
+  # refresh: all copies are cleared and the countdown starts again. So cities
+  # never all refresh at the same moment, and cities nobody visits cost nothing.
+  #
+  # 0 means never refresh, so each player gets exactly one copy of each city.
   refresh-hours: 12
 
 protection:
-  # Griefing protection, bounds-based per structure piece. Any block inside a
-  # generated structure piece (towers, bridges, the ship) is protected
-  # regardless of type. The void BETWEEN pieces stays untouched.
+  # Stop players griefing cities. Every block in a tower, a bridge or the ship is
+  # protected, whatever the block is. Each tower is protected on its own rather
+  # than as one big box round the whole city, so the empty space between them is
+  # still yours to build in.
   enabled: true
-  # Blocks to expand each structure piece by, covering edge decoration and a
-  # thin shell around each tower. Small (~3) — this is per-piece, not whole-area.
+  # How many blocks protection reaches past each tower, to cover its trim and
+  # decoration. Raising this starts protecting genuinely empty space between
+  # towers. Lowering it leaves decoration breakable.
   piece-padding: 3
-  # Deny placing blocks inside a protected structure piece.
+  # Also stop players building inside a protected part of the city.
   block-place: true
-  # Protect structure blocks from creeper/TNT/other explosions.
+  # Also protect city blocks from creepers, TNT and other explosions.
   block-explosions: true
-  # Show an action-bar message when a break/place is denied.
+  # Show a short message just above the player's hotbar when a break or a build
+  # is blocked, so they know why nothing happened.
   notify-denied: true
 
 snapshot:
-  # Hard cap on how many block-cells a single city snapshot may capture, to
-  # protect memory on pathological structures. ~3M is far above a real city.
+  # A limit on how many blocks one saved copy may hold, so a strange or enormous
+  # structure can't use up all your memory. This is far larger than any real
+  # End City, so you should never need to change it.
   max-cells: 3000000
-  # Capture a baseline snapshot automatically when a city is discovered, so a
-  # reset target always exists without a manual /betterend snapshot.
+  # Save a copy of each city as soon as it's found, so there's always something
+  # to restore from without you having to remember to make one.
   auto-capture: true
-  # When a city's loot refresh cycle rolls over, also restore its blocks from
-  # the snapshot (reverts griefing). OFF by default: a restore rewrites blocks
-  # and can be disruptive if players are inside. Requires a snapshot.
+  # Whenever a city's loot comes back, also put its blocks back the way they
+  # were, undoing any griefing.
+  #
+  # OFF by default, because putting blocks back rewrites the whole city at once.
+  # Players standing inside can be suffocated or shoved out of the way, and
+  # anything they've built in there is erased. Turn it on if cities are just
+  # somewhere to farm. Leave it off if players make bases in them.
   auto-reset-on-refresh: false
 
-# Anonymous usage metrics (FastStats). No player data is collected — just
-# aggregate config/feature usage that guides development priorities.
-# Server-wide opt-out also available in plugins/faststats/config.properties
-# (enabled=false). That file is written on first start and nothing is sent
-# until the following restart, so opting out first is always possible.
+# Anonymous usage counts (FastStats). Nothing about your players is collected,
+# just which settings are in use, so development time goes where it's needed.
+# Server-wide off switch: set enabled=false in plugins/faststats/config.properties.
+# That file is written on your first start and nothing is sent until the restart
+# after it, so you always get the chance to opt out first.
 metrics:
   enabled: true
+  # Automatically report Better End Cities' own errors, so bugs get fixed without
+  # you having to notice one and file a report. On by default. Set to false to
+  # turn it off.
+  #
+  # Only errors from THIS plugin are sent; other plugins' errors are never
+  # captured. Before anything leaves your server, IP addresses, file paths
+  # containing your username, database passwords and player ids are stripped out
+  # and replaced with placeholders. Each report also carries the plugin and
+  # Minecraft version, your storage type (sqlite or mysql), whether the server
+  # runs Folia, roughly how many cities you have, and which part of the plugin was
+  # running at the time, so a fix can target the right setup. Player names, chat,
+  # inventories and anything about your world are never included.
+  # (Server-wide off switch: submitErrors=false in plugins/faststats/config.properties.)
+  error-reporting: true
 
 setup:
-  # Set true automatically once the /betterend setup tour has been completed
-  # (or dismissed). Ops with betterend.admin get a one-time reminder on join
-  # while this is false.
+  # Set to true for you once the /betterend setup tour has been finished or
+  # skipped. While this is false, ops get a one-time reminder when they join.
+  # Set it back to false to see the reminder again.
   completed: false
 
 debug:
+  # Extra logging for chasing down a problem. Very noisy, so turn it on, make the
+  # problem happen again, then turn it back off. The output is useful to attach
+  # to a bug report.
   verbose-logging: false

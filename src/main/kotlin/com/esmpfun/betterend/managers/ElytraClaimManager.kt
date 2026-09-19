@@ -97,7 +97,9 @@ class ElytraClaimManager(private val plugin: BetterEnd) {
                     }
                 }
             } catch (e: Exception) {
+                // A claim that didn't persist lets the player claim the same ship again.
                 plugin.logger.warning("[ElytraClaims] record($cityId/$player) failed: ${e.message}")
+                com.esmpfun.betterend.integrations.MetricsService.reportHandled(e, "elytra-claim")
             }
         }
     }

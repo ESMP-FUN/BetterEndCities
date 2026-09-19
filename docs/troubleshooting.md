@@ -6,182 +6,139 @@ Most problems have a known cause. Start here.
 
 ## The plugin won't load
 
-### `Unsupported class file major version` / plugin missing from `/plugins`
+**`Unsupported class file major version`, or it's missing from `/plugins`**
+You're on Java 24 or older. This plugin needs **Java 25 or newer**. Check with `java -version` on the machine running the server, not your own computer.
 
-You're on **Java 24 or older**. BetterEnd needs **Java 25+**, because Paper 26.1's API classes are compiled to Java 25 bytecode.
+**`Unknown API version`, or it disables itself on a 1.21 server**
+This plugin is **Minecraft 26 only**. There is no 1.21 build. See [Installation](getting-started/installation.md#before-you-start).
 
-Check with `java -version` on the machine running the server — not your local one.
+**It won't load on my 26.1 or 26.2 server**
+You've got the `-mc263` download, which is built for 26.3 and up. Use `-mc26` instead. See [Download](getting-started/installation.md#download).
 
-### `Unknown API version` or an immediate disable on a 1.21 server
-
-BetterEnd is **26.x only**. There is no 1.21 build, and it won't load on one. See [Installation](getting-started/installation.md#prerequisites).
-
-### Nothing in the log at all
-
-Confirm the jar is directly in `plugins/`, not a subfolder, and that it's the shaded release jar (`BetterEnd-<version>.jar`) from [Releases](https://github.com/ESMP-FUN/BetterEnd/releases).
+**Nothing in the log at all**
+Check the jar is directly in `plugins/`, not in a folder inside it, and that it's the release jar from [Releases](https://github.com/ESMP-FUN/BetterEndCities/releases).
 
 ***
 
-## Cities aren't being discovered
+## Cities aren't being found
 
-### Nothing logs when I fly to a city
+**Nothing happens when I fly to a city**, most likely cause first:
 
-Discovery rides on **chunk loading**. A few causes, in order of likelihood:
+1. **It hasn't loaded in yet.** Flying fast on an elytra outruns the world loading. Stop, stand still a moment, watch the console.
+2. **The world is excluded.** Check `discovery.excluded-worlds` matches the world's actual name.
+3. **Finding cities is switched off.** Check `discovery.enabled: true`.
+4. **It isn't a real generated city.** A city a player built, or one pasted from a schematic, can't be registered. See [Finding Cities](guides/city-discovery.md#turning-it-off).
 
-1. **The chunks haven't loaded.** Flying fast on an elytra can outrun chunk loading. Stop, stand still a moment, and watch the console.
-2. **The world is excluded.** Check `discovery.excluded-worlds` in `config.yml` — it's case-insensitive but must match the world's actual name.
-3. **Discovery is off.** Check `discovery.enabled: true`.
-4. **It's not a real structure.** BetterEnd reads the server's structure data. A player-built or schematic-pasted "End City" has no structure data and can't be registered. See [City Discovery](guides/city-discovery.md#turning-discovery-off).
+Check what's registered with `/betterend list`.
 
-Confirm what's registered with `/betterend list`.
-
-### Cities in already-loaded chunks are missed after a restart
-
-That's what `discovery.startup-sweep: true` (the default) is for. If you turned it off, turn it back on.
+**Cities already loaded get missed after a restart**
+That's what `discovery.startup-sweep: true` is for, and it's on by default. If you turned it off, turn it back on.
 
 ***
 
 ## Elytra claims aren't working
 
-### Punching the frame does nothing
+**Punching the frame does nothing**
 
-* Check `elytra.enabled: true`
-* Check the city is registered: `/betterend list`
-* Check the city actually **has a ship**: `/betterend info <id>` — not every End City generates one
-* If a cost is set, the player needs the item. Without it the claim is refused with a red **action-bar** message ("You need 2 × Ender Pearl to claim this elytra") and a low note — easy to miss if they're watching chat
+* Check `elytra.enabled: true`, and that the city is registered with `/betterend list`
+* Check the city actually **has a ship**, with `/betterend info <id>`. Not every End City generates one
+* If you've set a cost, the player needs the item. Without it they get a red message **just above their hotbar**, which is easy to miss if they're watching chat
 
-### A player can't claim a second time
+**A player can't claim a second time**
+That's it working as you've set it up. `per-ship` needs a different ship, `global` is one per player ever, and `per-refresh` means waiting for that city's loot to come back. To reopen a ship: `/betterend clearclaims <id>`.
 
-Working as configured. Check `elytra.claim-mode`:
-
-* `per-ship` — one per player per ship. They need a **different** ship
-* `global` — one per player, ever, server-wide
-* `per-refresh` — they must wait for that city's loot refresh
-
-To deliberately reopen a ship: `/betterend clearclaims <id>`.
-
-### The cost item isn't being accepted
-
-The cost is stored as a full item stack, so a **specific** item is required — matching name, enchantments and NBT, not just the material. If you set the cost to a custom named item, a plain vanilla one won't do.
-
-Re-pick it via `/betterend` → **Choose Cost Item** if you're unsure what's stored.
+**The cost item isn't being accepted**
+The cost stores a **specific** item, including its name and enchantments. If you set it to a custom named item, an ordinary one won't pay it. Pick it again with `/betterend`, **Choose Cost Item**.
 
 {% hint style="warning" %}
-Never hand-edit `elytra.cost.item` in `config.yml`. It's Base64, not a material name.
+Never edit `elytra.cost.item` by hand. It stores a whole item, not an item name.
 {% endhint %}
 
-### No floating hint above the frame
-
-Check `elytra.text-display: true`. It's a text display entity — if you run a plugin or client mod that hides or culls display entities, that'll do it too.
+**No floating note above the frame**
+Check `elytra.text-display: true`. A plugin or client mod that hides floating labels will also do it.
 
 ***
 
 ## Per-player loot isn't working
 
-### Everyone sees the same chest contents
+**Everyone sees the same chest contents**
+Check `loot.enabled: true`, that the city is registered, and that the chest is one that **came with the city**. Chests players placed are deliberately normal and shared.
 
-* Check `loot.enabled: true`
-* Check the container is **inside the generated structure**. Player-placed chests are deliberately vanilla and shared
-* Check the city is registered: `/betterend list`
+**Loot never comes back**
+Nothing refreshes on a clock. Loot comes back when someone next loots the city *after* the time is up, so a city nobody visits never refreshes. Also check `loot.refresh-hours` isn't `0`.
 
-### Loot never refreshes
-
-The window is **lazy**. It doesn't refresh on a timer — it refreshes when someone next loots the city *after* the window has elapsed. A city nobody visits never refreshes, by design.
-
-Also check `loot.refresh-hours` isn't `0`, which means never.
-
-### A player lost their items
-
-Per-player copies are **storage**, not just loot. If a player leaves items in their copy and the city refreshes, those items are gone.
-
-Warn players not to store things in city containers, or set `loot.refresh-hours: 0`.
+**A player lost their items**
+Per-player copies are storage, not just loot. Items left in a copy are gone when the city refreshes. Tell players not to store things in city chests, or set `loot.refresh-hours: 0`.
 
 ***
 
 ## Protection isn't working
 
-### I can break blocks in a city
-
-You're almost certainly an op — `betterend.bypass.protection` **defaults to op**. Test as a non-op or negate it:
+**I can break blocks in a city**
+You're almost certainly an op. `betterend.bypass.protection` is given to ops by default. This is by far the most common "bug report" for this plugin. Test on a normal account, or take it away from yourself:
 
 ```
 /lp user <you> permission set betterend.bypass.protection false
 ```
 
-This is the single most common "bug report" for BetterEnd.
+**Players can build between the towers**
+Intended. Protection covers [each tower separately](guides/protection.md#each-tower-is-protected-on-its-own), so the space between them stays buildable. If decoration just outside a tower is breakable, raise `protection.piece-padding` a little.
 
-### Players can build between the towers
-
-Intended. Protection is [per structure piece](guides/protection.md#bounds-based-per-piece), so the space *between* pieces stays buildable. Only the towers, bridges and ship are protected.
-
-If decoration just outside a tower is breakable, raise `protection.piece-padding` slightly.
-
-### Explosions still damage the city
-
+**Explosions still damage the city**
 Check `protection.block-explosions: true`.
 
-***
-
-## Resets and snapshots
-
-### `/betterend reset` says there's no snapshot
-
-The city has none. Create one: `/betterend snapshot <id>`.
-
-Note that this captures the city **as it is now** — if it's already looted and griefed, that's what you'll restore to later.
-
-### A reset erased a player's base
-
-Expected, and why `auto-reset-on-refresh` is off by default. A restore rewrites every block inside the structure bounds, including player builds.
-
-If players base in cities, keep `snapshot.auto-reset-on-refresh: false` and reset manually.
-
-### Snapshots take up too much space
-
-They're gzipped in `plugins/BetterEnd/snapshots/`, one file per city, typically well under a megabyte each. If you've deleted cities, their `city_<id>.dat` files are no longer used and can be removed by hand.
+**Cushions can be placed or taken inside a protected city**
+You're on Minecraft 26.3 running the `-mc26` download, which was built before cushions existed and can't protect against them. Swap to the `-mc263` download and restart.
 
 ***
 
-## Database
+## Resets and saved copies
 
-### `Invalid database.type, defaulting to SQLITE`
+**`/betterend reset` says there's no saved copy**
+Make one with `/betterend snapshot <id>`. Note it saves the city **as it is right now**, so repair it first if it's already been wrecked.
 
-A typo in `database.type`. Valid values are exactly `sqlite` or `mysql`. Your MySQL settings are being **ignored entirely** while this shows.
+**A reset erased a player's base**
+Expected, and why putting blocks back on every refresh is off by default. If players make bases in cities, keep `snapshot.auto-reset-on-refresh: false` and reset by hand.
 
-### Everything reset after I switched to MySQL
+**Saved copies take up too much space**
+They're compressed, usually well under a megabyte each, in `plugins/BetterEndCities/snapshots/`. Files for cities you've deleted are no longer used and can be removed by hand.
 
-Expected — there's no migration between backends. The new database starts empty: cities re-register on their own, but claim history and loot copies are lost. See [Storage](configuration/storage.md#migrating-between-backends).
+***
+
+## Storage
+
+**`Invalid database.type, defaulting to SQLITE`**
+A typo. The only valid values are `sqlite` and `mysql`. Your MySQL settings are being ignored completely while this shows.
+
+**Everything reset after I switched to MySQL**
+Expected. There's no way to move data across, so the new database starts empty. Cities register themselves again, but claim history and loot copies are lost. See [Storage](configuration/storage.md#switching-between-them).
 
 ***
 
 ## Performance
 
-BetterEnd is built to stay off the main thread — discovery, snapshots and database work are async, and the loot refresh cycle is lazy rather than scheduled.
+Finding cities, saving copies and storage work all happen in the background, and nothing is scanned on a timer. If you're seeing lag:
 
-If you're seeing lag:
-
-1. **Check it's actually BetterEnd.** Run a profiler (`/spark profiler`) and look for `com.esmpfun.betterend` frames before changing anything.
-2. **Large resets are the one heavy operation.** Restoring a big city writes a lot of blocks. That's inherent — resets are bursty. Avoid `auto-reset-on-refresh` with a very short `refresh-hours`.
-3. **Startup sweep on a huge world** adds a one-off cost at enable. Turn `discovery.startup-sweep` off if you've measured it as a problem.
-4. **`debug.verbose-logging: true` is expensive.** Make sure it's off in production.
+1. **Check it's actually this plugin.** Run `/spark profiler` and look for `com.esmpfun.betterend` before changing anything.
+2. **Big resets are the one heavy job.** Rebuilding a large city writes a lot of blocks at once. Avoid putting blocks back on every refresh if your refresh time is very short.
+3. **The startup check on a huge world** costs a little once, at startup. Turn `discovery.startup-sweep` off only if you've measured it as a problem.
+4. **`debug.verbose-logging: true` is expensive.** Make sure it's off on a live server.
 
 ***
 
 ## Reporting bugs
 
-[GitHub Issues](https://github.com/ESMP-FUN/BetterEnd/issues), or [Discord](https://discord.gg/qwYcTpHsNC) if you'd rather chat it through.
+[GitHub Issues](https://github.com/ESMP-FUN/BetterEndCities/issues), or [Discord](https://discord.gg/qwYcTpHsNC) if you'd rather talk it through. Please include:
 
-Please include:
+* **The plugin version**, from `/betterend update status` or the jar filename
+* **Your server software and version**, the full `/version` output
+* **Your Java version**, from `java -version` on the server
+* **The full error**, copied from the log file rather than screenshotted from chat
+* **What you expected** and **what actually happened**
+* **`/betterend info <id>`** for the affected city, if it's about one city
 
-* **BetterEnd version** — `/betterend update status`, or the jar filename
-* **Server software and version** — the full `/version` output
-* **Java version** — `java -version` on the server host
-* **The full stack trace**, if there is one — from the log file, not a screenshot of chat
-* **What you expected** and **what happened**
-* **`/betterend info <id>`** output for the affected city, if it's city-specific
-
-Turning on `debug.verbose-logging: true`, reproducing the issue, then attaching that section of the log makes almost any report diagnosable in one round trip.
+Switching on `debug.verbose-logging: true`, making the problem happen again, then attaching that part of the log usually means it can be sorted in one reply.
 
 {% hint style="info" %}
-**Feature requests are welcome too.** Several things in BetterEnd exist because a server owner said "if it did X, I'd use it". Say it on Discord.
+**Feature requests are welcome too.** Several things in this plugin exist because a server owner said "if it did X, I'd use it". Say it on Discord.
 {% endhint %}

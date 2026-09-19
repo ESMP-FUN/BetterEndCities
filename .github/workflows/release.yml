@@ -29,6 +29,19 @@ jobs:
           awk '/^## \[/{n++} n==1' CHANGELOG.md > RELEASE_NOTES.md || echo "See CHANGELOG.md" > RELEASE_NOTES.md
 
       - name: Create release
-        run: gh release create "$GITHUB_REF_NAME" build/libs/BetterEnd-*.jar --title "$GITHUB_REF_NAME" --notes-file RELEASE_NOTES.md
+        run: gh release create "$GITHUB_REF_NAME" build/libs/BetterEndCities-*-mc26.jar --title "$GITHUB_REF_NAME" --notes-file RELEASE_NOTES.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      # mc263 companion jar — built from the mc263 branch (merge main -> mc263 before tagging)
+      - name: Build and attach mc263 jar
+        run: |
+          if git fetch origin mc263 2>/dev/null; then
+            git checkout -f FETCH_HEAD
+            ./gradlew build -x test
+            gh release upload "$GITHUB_REF_NAME" build/libs/*-mc263.jar || echo "no mc263 jar produced"
+          else
+            echo "no mc263 branch — skipping"
+          fi
         env:
           GH_TOKEN: ${{ github.token }}

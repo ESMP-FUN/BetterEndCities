@@ -79,7 +79,7 @@ class CityDiscoveryManager(private val plugin: BetterEnd) {
                 "(${c.minX},${c.minY},${c.minZ})..(${c.maxX},${c.maxY},${c.maxZ}), ${city.pieces.size} pieces"
         )
         val comp = MiniMessage.miniMessage().deserialize(
-            "<light_purple>[BetterEnd] <gray>Discovered End City <gray>#<white>${city.id} <white>${city.world} " +
+            "<light_purple>[BetterEndCities] <gray>Discovered End City <gray>#<white>${city.id} <white>${city.world} " +
                 "<click:run_command:'/betterend tp ${city.id}'><hover:show_text:'<gray>Teleport to city <white>#${city.id}'>" +
                 "<green>[${c.minX} ${c.minY} ${c.minZ}]</green></hover></click> " +
                 "<dark_gray>• ${city.pieces.size} pieces"

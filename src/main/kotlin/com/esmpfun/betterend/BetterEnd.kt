@@ -15,6 +15,8 @@ import com.esmpfun.betterend.managers.ElytraClaimManager
 import com.esmpfun.betterend.managers.SnapshotManager
 import com.esmpfun.betterend.scheduler.SchedulerAdapter
 import com.esmpfun.betterend.setup.SetupReminderListener
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -70,7 +72,17 @@ class BetterEnd : JavaPlugin() {
     // Plugin-wide coroutine scope (SupervisorJob so one failed job doesn't tear
     // down the rest). Cancelled in onDisable.
     private val pluginJob = SupervisorJob()
-    val pluginScope = CoroutineScope(Dispatchers.Default + pluginJob)
+
+    // Catches anything escaping a launchAsync block: logged, and reported to
+    // FastStats when error reporting is on. An uncaught background failure is
+    // exactly the kind of bug nobody files a ticket for.
+    private val coroutineErrorHandler = CoroutineExceptionHandler { _, t ->
+        if (t !is CancellationException) {
+            logger.log(java.util.logging.Level.SEVERE, "Uncaught error in a background task", t)
+            MetricsService.reportHandled(t, "coroutine")
+        }
+    }
+    val pluginScope = CoroutineScope(Dispatchers.Default + pluginJob + coroutineErrorHandler)
 
     /** Launch an async coroutine on the plugin scope. */
     fun launchAsync(block: suspend CoroutineScope.() -> Unit): Job =
@@ -80,7 +92,7 @@ class BetterEnd : JavaPlugin() {
         saveDefaultConfig()
         scheduler = SchedulerAdapter.create(this)
 
-        logger.info("BetterEnd starting on ${if (scheduler.isFolia) "Folia" else "Paper"}...")
+        logger.info("Better End Cities starting on ${if (scheduler.isFolia) "Folia" else "Paper"}...")
 
         // Async-first init: heavy setup (DB, caches, discovery sweep) runs off
         // the main thread; listeners register on the main thread once ready.
@@ -100,7 +112,7 @@ class BetterEnd : JavaPlugin() {
         // managers above so tab-completion always has them; BeCommand guards on
         // isReady for anything that needs the database.
         @Suppress("UnstableApiUsage")
-        registerCommand("betterend", "BetterEnd admin command & config menu", BeCommand(this))
+        registerCommand("betterend", "Better End Cities admin command & config menu", BeCommand(this))
 
         launchAsync {
             try {
@@ -120,7 +132,7 @@ class BetterEnd : JavaPlugin() {
                     // integrations below. Every listener guards on isReady, so a
                     // throw from an add-on must never leave the plugin inert.
                     isReady = true
-                    logger.info("BetterEnd ready.")
+                    logger.info("Better End Cities ready.")
 
                     // Update checking (PluginPulse). Config in pluginpulse.yml;
                     // server owners can override mode/interval via an `update:`
@@ -137,7 +149,7 @@ class BetterEnd : JavaPlugin() {
                     discoveryManager.startupSweep()
                 })
             } catch (e: Exception) {
-                logger.severe("BetterEnd failed to initialize: ${e.message}")
+                logger.severe("Better End Cities failed to initialize: ${e.message}")
                 e.printStackTrace()
             }
         }
@@ -150,6 +162,6 @@ class BetterEnd : JavaPlugin() {
         scheduler.cancelAllTasks()
         pluginScope.cancel()
         if (::databaseManager.isInitialized) databaseManager.close()
-        logger.info("BetterEnd disabled.")
+        logger.info("Better End Cities disabled.")
     }
 }

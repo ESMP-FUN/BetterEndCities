@@ -1,46 +1,46 @@
 # Protection
 
-End City structures protect themselves from griefing — without fencing players out of the island they're on.
+End Cities protect themselves from griefing, without fencing players out of the island they're on.
 
 ***
 
-## Bounds-based, per piece
+## Each tower is protected on its own
 
 This is the design decision that matters.
 
-BetterEnd doesn't draw one big box around a city. It protects **each generated structure piece individually** — every tower, bridge, and the ship — using the server's own structure data for exact bounds.
+Better End Cities doesn't draw one big box around a city. It protects **each part of the city separately**: every tower, every bridge, and the ship. It knows their exact shapes, because it reads them from the world itself.
 
-The result: the towers can't be stripped, but **the empty space between them stays fully buildable**. Players can build on the island, bridge between towers, and set up a base in the gaps, all without fighting the plugin.
+So the towers can't be stripped, but **the empty space between them is still yours to build in**. Players can build on the island, bridge between towers, and set up a base in the gaps, without fighting the plugin.
 
-A one-big-region approach would protect a huge cube of mostly-empty air and make the whole island read-only. This doesn't.
+Drawing one big box would protect a huge cube of mostly empty air and make the whole island read-only. This doesn't.
 
-### Piece padding
+### Reaching a little further
 
 ```yaml
 protection:
   piece-padding: 3
 ```
 
-Each piece expands by this many blocks, covering edge decoration and a thin shell around each tower — the trim and detail blocks that sit just outside the structure's strict bounds.
+Protection reaches this many blocks past each tower, to cover the trim and decoration that sits just outside its edges.
 
-`3` is a good default. Raising it starts protecting genuinely empty space between pieces; lowering it leaves decoration breakable.
+`3` is a good default. Raising it starts protecting genuinely empty space between towers. Lowering it leaves decoration breakable.
 
 ***
 
 ## What's protected
 
-Everything inside a protected piece, **regardless of block type**:
+Everything inside a protected part of the city, **whatever the block is**:
 
-| Setting | Default | Protects against |
+| Setting | Default | Stops |
 |---|---|---|
-| `protection.enabled` | `true` | Breaking structure blocks (the master toggle) |
-| `protection.block-place` | `true` | Placing blocks inside a structure piece |
+| `protection.enabled` | `true` | Breaking city blocks (the main switch) |
+| `protection.block-place` | `true` | Building inside the city |
 | `protection.block-explosions` | `true` | Creepers, TNT, and other explosions |
 
 The elytra item frame is protected separately and always, as part of the [claim system](elytra-claims.md#whats-protected).
 
 {% hint style="info" %}
-**"Regardless of block type" is deliberate.** No allowlist to maintain — if it's inside the structure, it's protected. That covers purpur, end stone bricks, chests, shulkers, banners, and whatever a future update adds.
+**"Whatever the block is" is deliberate.** There's no list of protected blocks to keep up to date. If it's part of the city, it's protected. That covers purpur, end stone bricks, chests, shulkers, banners, and anything a future Minecraft update adds.
 {% endhint %}
 
 ***
@@ -52,25 +52,25 @@ protection:
   notify-denied: true
 ```
 
-A denied break or place shows an **action-bar message** rather than failing silently. Silent failures generate support tickets; a one-line explanation doesn't.
+When a break or a build is blocked, a short message appears **just above the player's hotbar** instead of nothing happening at all. Silent failures turn into support tickets. A one-line explanation doesn't.
 
-It's the action bar rather than chat deliberately — a player mining along a wall would otherwise spam their own chat.
+It goes above the hotbar rather than in chat on purpose. A player mining along a wall would otherwise fill their own chat with the same message.
 
 ***
 
-## Bypassing
+## Letting staff through
 
-`betterend.bypass.protection` lets a player build and break freely inside protected structures. **Ops have it by default.**
+`betterend.bypass.protection` lets a player build and break freely inside cities. **Ops have it by default.**
 
 {% hint style="warning" %}
-**Testing protection as an op will look broken.** You'll break blocks freely and conclude protection isn't working. Test as a non-op, or explicitly negate the permission:
+**Testing protection as an op will look broken.** You'll break blocks freely and conclude protection isn't working. Test on a normal account, or take the permission away from yourself:
 
 ```
 /lp user <you> permission set betterend.bypass.protection false
 ```
 {% endhint %}
 
-For builders who need to work inside cities, grant the permission to a staff rank rather than turning protection off.
+For builders who need to work inside cities, give the permission to a staff rank rather than turning protection off.
 
 ***
 
@@ -81,25 +81,25 @@ protection:
   enabled: false
 ```
 
-Cities become fully breakable. Discovery, per-player loot, elytra claims and snapshots all keep working — protection is independent.
+Cities become fully breakable. Finding cities, per-player loot, elytra claims and saved copies all keep working, because protection is separate from all of them.
 
 Worth considering on anarchy-style servers, where you might still want renewable elytras and per-player loot without the "you can't break that" layer.
 
 {% hint style="info" %}
-**Protection off + auto-restore on** is a coherent combination: players can destroy a city freely, and it rebuilds itself on the next loot refresh. See [Snapshots & Resets](snapshots-and-resets.md).
+**Protection off, putting blocks back on** is a sensible pairing: players can destroy a city freely, and it rebuilds itself on the next loot refresh. See [Saved Copies and Resets](snapshots-and-resets.md).
 {% endhint %}
 
 ***
 
-## Scope
+## What it deliberately doesn't do
 
-Protection is deliberately self-contained — three toggles and a padding value, with no integration surface:
+Protection is self-contained. Three switches and one distance, and it doesn't talk to anything else:
 
-* **No claim-plugin hooks.** BetterEnd doesn't inspect Residence / Lands / GriefPrevention claims.
-* **No WorldGuard integration.** It neither reads nor writes WorldGuard regions.
-* **No container-access control.** Protection covers blocks; container *contents* are handled by [per-player loot](per-player-loot.md) instead.
+* **It doesn't read land-claim plugins** such as Residence, Lands or GriefPrevention.
+* **It doesn't use WorldGuard**, and neither reads nor creates WorldGuard regions.
+* **It doesn't control who can open chests.** Protection covers blocks. What's *inside* a chest is handled by [per-player loot](per-player-loot.md) instead.
 
-That's the point rather than a shortfall — nothing to configure, nothing to keep in sync with another plugin, and no behaviour that changes depending on what else you have installed. Protection works the same on every server running it.
+That's the point, not a gap. There's nothing to configure, nothing to keep in step with another plugin, and no behaviour that changes depending on what else you have installed. Protection works the same on every server running it.
 
 If your setup genuinely needs one of these, say so on [Discord](https://discord.gg/qwYcTpHsNC).
 

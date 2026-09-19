@@ -180,10 +180,10 @@ object SetupTour {
         }
         val close = BeDialogs.closeButton(player, "Close", "Ask me again next time")
 
-        val base = DialogBase.builder(Component.text("BetterEnd — first-time setup", NamedTextColor.DARK_AQUA))
+        val base = DialogBase.builder(Component.text("Better End Cities - first-time setup", NamedTextColor.DARK_AQUA))
             .body(
                 listOf(
-                    "Welcome! BetterEnd makes the End multiplayer-friendly:",
+                    "Welcome! Better End Cities makes the End multiplayer-friendly:",
                     "",
                     "• Every player earns their own elytra from each End Ship.",
                     "• Every player gets their own copy of End City loot.",
@@ -270,7 +270,7 @@ object SetupTour {
         val base = DialogBase.builder(Component.text("Setup complete ✔", NamedTextColor.DARK_AQUA))
             .body(
                 listOf(
-                    "That's everything — BetterEnd is live:",
+                    "That's everything, Better End Cities is live:",
                     "",
                     "• Elytra: ${plugin.elytraClaimManager.mode().label}",
                     "• $costLine",

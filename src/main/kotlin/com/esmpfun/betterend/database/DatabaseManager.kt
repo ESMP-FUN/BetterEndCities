@@ -57,7 +57,7 @@ class DatabaseManager(private val plugin: BetterEnd) {
             idleTimeout = 300000
             maxLifetime = 600000
             connectionTestQuery = "SELECT 1"
-            poolName = "BetterEnd-SQLite"
+            poolName = "BetterEndCities-SQLite"
             leakDetectionThreshold = 10000
             addDataSourceProperty("journal_mode", "WAL")
             addDataSourceProperty("synchronous", "NORMAL")
@@ -78,7 +78,7 @@ class DatabaseManager(private val plugin: BetterEnd) {
             this.password = password
             maximumPoolSize = config.getInt("database.mysql.pool-size", 10)
             connectionTestQuery = "SELECT 1"
-            poolName = "BetterEnd-MySQL"
+            poolName = "BetterEndCities-MySQL"
             addDataSourceProperty("cachePrepStmts", "true")
             addDataSourceProperty("prepStmtCacheSize", "250")
             addDataSourceProperty("prepStmtCacheSqlLimit", "2048")

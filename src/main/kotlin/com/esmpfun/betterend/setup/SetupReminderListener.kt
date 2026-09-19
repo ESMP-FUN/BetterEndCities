@@ -29,7 +29,7 @@ class SetupReminderListener(private val plugin: BetterEnd) : Listener {
             if (!player.isOnline || plugin.config.getBoolean("setup.completed", false)) return@Runnable
             player.sendMessage(
                 MiniMessage.miniMessage().deserialize(
-                    "<light_purple>[BetterEnd]</light_purple> <gray>First time? Take the 2-minute " +
+                    "<light_purple>[BetterEndCities]</light_purple> <gray>First time? Take the 2-minute " +
                         "<click:run_command:'/betterend setup'><hover:show_text:'<gray>Opens the guided setup'>" +
                         "<green>[setup tour]</green></hover></click><gray> — or ignore this; the defaults already work."
                 )

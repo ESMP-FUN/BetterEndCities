@@ -37,7 +37,7 @@ class BeCommand(private val plugin: BetterEnd) : BasicCommand {
     override fun execute(source: CommandSourceStack, args: Array<String>) {
         val sender = source.sender
         if (!plugin.isReady && args.getOrNull(0)?.lowercase() != "help") {
-            sender.sendMessage("§7BetterEnd is still starting up — try again in a moment.")
+            sender.sendMessage("§7Better End Cities is still starting up, try again in a moment.")
             return
         }
         when (args.getOrNull(0)?.lowercase()) {
@@ -54,7 +54,7 @@ class BeCommand(private val plugin: BetterEnd) : BasicCommand {
             "resetloot" -> handleResetLoot(sender, args.getOrNull(1), args.getOrNull(2))
             "clearclaims" -> handleClearClaims(sender, args.getOrNull(1))
             "delete" -> handleDelete(sender, args.getOrNull(1))
-            "reload" -> { plugin.reloadConfig(); sender.sendMessage("§aBetterEnd config reloaded.") }
+            "reload" -> { plugin.reloadConfig(); sender.sendMessage("§aBetter End Cities config reloaded.") }
             "update" -> io.github.darkstarworks.pluginpulse.PluginPulse.handleUpdateCommand(
                 plugin, sender, args.copyOfRange(1, args.size))
             "help" -> sendHelp(sender)
@@ -78,7 +78,7 @@ class BeCommand(private val plugin: BetterEnd) : BasicCommand {
     }
 
     private fun sendHelp(sender: CommandSender) {
-        sender.sendMessage("§5§lBetterEnd §7— admin commands")
+        sender.sendMessage("§5§lBetter End Cities §7- admin commands")
         sender.sendMessage("§f/betterend §7— open the config menu (dialogs)")
         sender.sendMessage("§f/betterend setup §7— guided first-time setup tour")
         sender.sendMessage("§f/betterend list §7— list discovered End Cities")
