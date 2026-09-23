@@ -108,6 +108,8 @@ class DatabaseManager(private val plugin: BetterEnd) {
                         snapshot_file VARCHAR(255),
                         loot_cycle_start BIGINT,
                         has_ship INT NOT NULL DEFAULT 0,
+                        ship_x INT, ship_y INT, ship_z INT,
+                        head_taken INT NOT NULL DEFAULT 0,
                         UNIQUE (world, origin_x, origin_y, origin_z)
                     )
                     """.trimIndent()
@@ -173,6 +175,19 @@ class DatabaseManager(private val plugin: BetterEnd) {
                     """.trimIndent()
                 )
                 stmt.execute("CREATE INDEX IF NOT EXISTS idx_elytra_claims_player ON elytra_claims(player_uuid)")
+            }
+            // Columns added after 0.3.0. CREATE TABLE above covers new databases.
+            val existing = HashSet<String>()
+            conn.metaData.getColumns(conn.catalog, null, "cities", null).use { rs ->
+                while (rs.next()) existing.add(rs.getString("COLUMN_NAME").lowercase())
+            }
+            conn.createStatement().use { stmt ->
+                for ((column, type) in listOf(
+                    "ship_x" to "INT", "ship_y" to "INT", "ship_z" to "INT",
+                    "head_taken" to "INT NOT NULL DEFAULT 0",
+                )) {
+                    if (column !in existing) stmt.execute("ALTER TABLE cities ADD COLUMN $column $type")
+                }
             }
         }
     }

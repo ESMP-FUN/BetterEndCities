@@ -35,6 +35,11 @@ class ElytraClaimManager(private val plugin: BetterEnd) {
         }
     }
 
+    private companion object {
+        /** 2^16 times the base price is already out of reach; this just stops the numbers overflowing. */
+        const val MAX_DOUBLINGS = 16
+    }
+
     /** cityId -> (player -> claimed_at). */
     private val claims = ConcurrentHashMap<Int, ConcurrentHashMap<UUID, Long>>()
 
@@ -118,6 +123,31 @@ class ElytraClaimManager(private val plugin: BetterEnd) {
             plugin.logger.warning("[ElytraClaims] clearCity($cityId) failed: ${e.message}")
             0
         }
+    }
+
+    // ── price ────────────────────────────────────────────────────────────────
+
+    /** What [player]'s next claim costs: [items] of the single [item] (null = no item) plus [levels]. */
+    data class Price(val levels: Int, val item: ItemStack?, val items: Int, val doublings: Int)
+
+    /** How far back claims count toward doubling: one loot refresh, or forever when refresh is off. */
+    fun doublingWindowMs(): Long = plugin.config.getInt("loot.refresh-hours", 12) * 3_600_000L
+
+    /** Claims [player] made, across every ship, inside the doubling window. */
+    fun recentClaims(player: UUID): Int {
+        val window = doublingWindowMs()
+        val since = if (window > 0) System.currentTimeMillis() - window else Long.MIN_VALUE
+        return claims.values.count { (it[player] ?: return@count false) > since }
+    }
+
+    fun priceFor(player: UUID): Price {
+        val doublings = if (plugin.config.getBoolean("elytra.cost.double-each-claim", false))
+            recentClaims(player).coerceAtMost(MAX_DOUBLINGS) else 0
+        val factor = 1 shl doublings
+        val levels = plugin.config.getInt("elytra.cost.levels", 0).coerceAtLeast(0) * factor
+        // Kept apart from the stack: a doubled count can pass what one stack may hold.
+        val base = costStack()
+        return Price(levels, base?.clone()?.apply { amount = 1 }, (base?.amount ?: 0) * factor, doublings)
     }
 
     // ── cost item (config-backed) ────────────────────────────────────────────
