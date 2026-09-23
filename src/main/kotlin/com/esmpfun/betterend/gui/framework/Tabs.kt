@@ -23,7 +23,7 @@ data class Tab(
  * Tabbed GUI strategy. Renders a row of [Tab.icon] buttons; the active
  * tab is highlighted; clicking another tab swaps the active populate.
  *
- * Composable utility — instantiate on a [VcGui] subclass and call
+ * Composable utility - instantiate on a [VcGui] subclass and call
  * [applyTo] in [VcGui.render].
  *
  * ```
@@ -83,7 +83,7 @@ class Tabs(
             gui.set(tabRow, index, VcGuiItem(
                 stack = stack,
                 onClick = { _ ->
-                    // `gui` is captured from applyTo's parameter — no need
+                    // `gui` is captured from applyTo's parameter - no need
                     // to dig it out of the click context. `select` calls
                     // applyTo (which mutates in-memory slots); `update`
                     // flushes those changes into the open inventory.

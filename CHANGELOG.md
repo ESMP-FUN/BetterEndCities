@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [Unreleased]
+### Fixed
+- **MySQL storage never started.** Setting up the tables used a command MySQL doesn't have, so with `database.type: mysql` the plugin stopped during startup and did nothing at all. SQLite servers were not affected. Loot copies stored in MySQL can also now hold more than 64 KB, so a chest full of written books or packed shulker boxes saves properly.
+- **Loot could be taken twice.** A player who had a city chest open when the server stopped or reloaded kept what they took, while the chest came back full on the next start. The same happened if a chest was reopened before the previous close had finished saving. Open chests are now saved and closed before shutdown, and a reopen always sees the latest contents.
+- **A player's own chest inside a city was copied to everyone.** On worlds that were played before the plugin was installed, a chest a player had placed and filled inside a city tower was treated as city loot, handing every player a copy of what was in it. A chest that holds items but has no loot of its own now stays an ordinary shared chest.
+- **Cities that were looted before the plugin was installed gave out empty chests.** Those chests now fill with fresh End City loot for each player, as the documentation always said.
+- **City bounds were one block too small** along their east, top and south edges, so a chest or block right on that edge could be missed by per-player loot and protection. Existing cities are corrected automatically on the first start.
+- **Finding a ship's elytra frame could load up to 25 chunks at once**, briefly freezing the server, and on Folia could error. It now only looks at the frame's own chunk.
+- **Saving a city's snapshot no longer freezes the server** while the rest of the city's chunks load or generate.
+- **Protection gaps:** water and lava buckets, pistons pushing or pulling city blocks, withers, and falling sand or anvils could all change a protected city. They can't anymore.
+- **Folia:** `/betterend tp` failed, and saving settings from the menu could throw an error while updating the floating price notes. Both are fixed.
+- `/betterend tp` now lands you on top of the city's base tower, instead of the middle of the city's area, which can be open void.
+- `/betterend delete` now also forgets that city's elytra claims straight away, and lets the city be found again without a restart, as the documentation describes.
+- `/betterend resetloot` no longer stalls the server looking up a player name that has never joined.
+- The settings menu and setup tour now include every setting: the XP level price, price doubling, the frame shimmer, ship-only protection and the takeable dragon head. Before, those could only be changed in `config.yml`.
+
 ## [0.3.0] - 2026-09-19
 ### Added
 - **Minecraft 26.3 support, as its own download.** This is the `-mc263` jar; keep using `-mc26` on 26.1 and 26.2. Each download follows its own updates, so a 26.3 server is never offered a jar built for an older Minecraft. The `-mc26` jar still loads and works on 26.3, it just can't protect cushions.

@@ -12,15 +12,15 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Elytra claim bookkeeping. Fully preloaded into memory (claim volume is
- * players × ships — tiny), because the punch handler must answer
+ * players x ships - tiny), because the punch handler must answer
  * "has this player claimed?" synchronously to cancel the event, with the DB
  * only written behind the cache.
  *
  * Claim modes (config `elytra.claim-mode`):
- *  - `per-ship`    — one claim per (city, player), ever.
- *  - `per-refresh` — a claim goes stale when the city's loot cycle rolls over
+ *  - `per-ship`    - one claim per (city, player), ever.
+ *  - `per-refresh` - a claim goes stale when the city's loot cycle rolls over
  *                    (claimed_at < the city's current cycle start).
- *  - `global`      — one claim per player across all cities.
+ *  - `global`      - one claim per player across all cities.
  */
 class ElytraClaimManager(private val plugin: BetterEnd) {
 
@@ -65,7 +65,7 @@ class ElytraClaimManager(private val plugin: BetterEnd) {
 
     /**
      * Whether [player] is currently blocked from claiming at [cityId] under the
-     * configured mode. Synchronous — reads the in-memory cache only.
+     * configured mode. Synchronous - reads the in-memory cache only.
      */
     fun hasClaimed(cityId: Int, player: UUID): Boolean = when (mode()) {
         ClaimMode.PER_SHIP -> claims[cityId]?.containsKey(player) == true
@@ -77,7 +77,7 @@ class ElytraClaimManager(private val plugin: BetterEnd) {
         ClaimMode.GLOBAL -> claims.values.any { it.containsKey(player) }
     }
 
-    /** Records a claim (cache now, DB behind it — upsert so re-claims after a
+    /** Records a claim (cache now, DB behind it - upsert so re-claims after a
      *  refresh just move claimed_at forward). */
     fun record(cityId: Int, player: UUID) {
         val now = System.currentTimeMillis()
@@ -125,6 +125,11 @@ class ElytraClaimManager(private val plugin: BetterEnd) {
         }
     }
 
+    /** Forgets a deleted city's claims in memory; its rows already went with the city row. */
+    fun dropCity(cityId: Int) {
+        claims.remove(cityId)
+    }
+
     // ── price ────────────────────────────────────────────────────────────────
 
     /** What [player]'s next claim costs: [items] of the single [item] (null = no item) plus [levels]. */
@@ -144,7 +149,8 @@ class ElytraClaimManager(private val plugin: BetterEnd) {
         val doublings = if (plugin.config.getBoolean("elytra.cost.double-each-claim", false))
             recentClaims(player).coerceAtMost(MAX_DOUBLINGS) else 0
         val factor = 1 shl doublings
-        val levels = plugin.config.getInt("elytra.cost.levels", 0).coerceAtLeast(0) * factor
+        val levels = (plugin.config.getInt("elytra.cost.levels", 0).coerceAtLeast(0).toLong() * factor)
+            .coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
         // Kept apart from the stack: a doubled count can pass what one stack may hold.
         val base = costStack()
         return Price(levels, base?.clone()?.apply { amount = 1 }, (base?.amount ?: 0) * factor, doublings)
@@ -155,7 +161,7 @@ class ElytraClaimManager(private val plugin: BetterEnd) {
     /**
      * The configured claim cost, or null when claiming is free. The stack's
      * amount carries `elytra.cost.amount` (clamped to the item's max stack
-     * size — the amount slider and this loader enforce the same rule).
+     * size - the amount slider and this loader enforce the same rule).
      */
     fun costStack(): ItemStack? {
         val amount = plugin.config.getInt("elytra.cost.amount", 0)

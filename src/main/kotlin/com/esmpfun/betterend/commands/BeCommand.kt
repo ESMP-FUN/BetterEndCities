@@ -6,6 +6,7 @@ import com.esmpfun.betterend.models.EndCity
 import com.esmpfun.betterend.setup.SetupTour
 import io.papermc.paper.command.brigadier.BasicCommand
 import io.papermc.paper.command.brigadier.CommandSourceStack
+import kotlinx.coroutines.future.await
 import net.kyori.adventure.text.minimessage.MiniMessage
 import org.bukkit.Location
 import org.bukkit.command.CommandSender
@@ -13,15 +14,15 @@ import org.bukkit.entity.Player
 import java.util.UUID
 
 /**
- * `/betterend` — menu-first admin command (Paper plugins register commands in
+ * `/betterend` - menu-first admin command (Paper plugins register commands in
  * code, not via paper-plugin.yml).
  *
- *   /betterend                 → the dialog config menu
- *   /betterend setup           → guided setup tour
- *   /betterend list|info|tp    → city inspection
- *   /betterend snapshot|reset  → structure capture/restore
- *   /betterend resetloot|clearclaims|delete → surgical resets
- *   /betterend reload|update   → housekeeping
+ *   /betterend                 the dialog config menu
+ *   /betterend setup           guided setup tour
+ *   /betterend list|info|tp    city inspection
+ *   /betterend snapshot|reset  structure capture/restore
+ *   /betterend resetloot|clearclaims|delete  surgical resets
+ *   /betterend reload|update   housekeeping
  */
 @Suppress("UnstableApiUsage")
 class BeCommand(private val plugin: BetterEnd) : BasicCommand {
@@ -79,18 +80,18 @@ class BeCommand(private val plugin: BetterEnd) : BasicCommand {
 
     private fun sendHelp(sender: CommandSender) {
         sender.sendMessage("§5§lBetter End Cities §7- admin commands")
-        sender.sendMessage("§f/betterend §7— open the config menu (dialogs)")
-        sender.sendMessage("§f/betterend setup §7— guided first-time setup tour")
-        sender.sendMessage("§f/betterend list §7— list discovered End Cities")
-        sender.sendMessage("§f/betterend info <id> §7— details of a city")
-        sender.sendMessage("§f/betterend tp <id> §7— teleport to a city")
-        sender.sendMessage("§f/betterend snapshot <id> §7— capture the city's structure for restoration")
-        sender.sendMessage("§f/betterend reset <id> §7— restore blocks from snapshot + fresh loot for everyone")
-        sender.sendMessage("§f/betterend resetloot <id> <player> §7— let one player loot the city fresh")
-        sender.sendMessage("§f/betterend clearclaims <id> §7— forget who claimed this ship's elytra")
-        sender.sendMessage("§f/betterend delete <id> §7— unregister a city (loot & claims go with it)")
-        sender.sendMessage("§f/betterend reload §7— reload config.yml")
-        sender.sendMessage("§f/betterend update §7— update checking (PluginPulse)")
+        sender.sendMessage("§f/betterend §7- open the settings menu")
+        sender.sendMessage("§f/betterend setup §7- guided first-time setup tour")
+        sender.sendMessage("§f/betterend list §7- list the End Cities found so far")
+        sender.sendMessage("§f/betterend info <id> §7- details of one city")
+        sender.sendMessage("§f/betterend tp <id> §7- teleport to a city")
+        sender.sendMessage("§f/betterend snapshot <id> §7- save a copy of the city's blocks to put back later")
+        sender.sendMessage("§f/betterend reset <id> §7- put the city's blocks back and give everyone fresh loot")
+        sender.sendMessage("§f/betterend resetloot <id> <player> §7- let one player loot the city fresh")
+        sender.sendMessage("§f/betterend clearclaims <id> §7- forget who claimed this ship's elytra")
+        sender.sendMessage("§f/betterend delete <id> §7- stop managing a city (its loot and claims go with it)")
+        sender.sendMessage("§f/betterend reload §7- reload config.yml")
+        sender.sendMessage("§f/betterend update §7- check for updates")
     }
 
     private fun resolve(sender: CommandSender, idArg: String?): EndCity? {
@@ -110,7 +111,7 @@ class BeCommand(private val plugin: BetterEnd) : BasicCommand {
     private fun handleList(sender: CommandSender) {
         val cities = plugin.cityManager.all().sortedBy { it.id }
         if (cities.isEmpty()) {
-            sender.sendMessage("§7No End Cities discovered yet — they register as players find them.")
+            sender.sendMessage("§7No End Cities found yet. They register as players find them.")
             return
         }
         sender.sendMessage("§5End Cities §7(${cities.size})")
@@ -121,8 +122,8 @@ class BeCommand(private val plugin: BetterEnd) : BasicCommand {
                     "<click:run_command:'/betterend tp ${c.id}'><hover:show_text:'<gray>Teleport to city <white>#${c.id}'>" +
                     "<green>[${r.minX} ${r.minY} ${r.minZ}]</green></hover></click> " +
                     "<dark_gray>• ${c.pieces.size} pieces" +
-                    (if (c.hasShip) " <dark_gray>• <aqua>⛵ ship" else "") +
-                    (if (plugin.snapshotManager.hasSnapshot(c.id)) " <dark_gray>• <gray>snapshot ✔" else "")
+                    (if (c.hasShip) " <dark_gray>• <aqua>ship" else "") +
+                    (if (plugin.snapshotManager.hasSnapshot(c.id)) " <dark_gray>• <gray>snapshot saved" else "")
             ))
         }
     }
@@ -132,10 +133,10 @@ class BeCommand(private val plugin: BetterEnd) : BasicCommand {
         val r = city.region
         sender.sendMessage("§5End City §7#§f${city.id}")
         sender.sendMessage("§7World: §f${city.world}")
-        sender.sendMessage("§7Bounds: §f(${r.minX}, ${r.minY}, ${r.minZ}) §7→ §f(${r.maxX}, ${r.maxY}, ${r.maxZ})")
+        sender.sendMessage("§7Bounds: §f(${r.minX}, ${r.minY}, ${r.minZ}) §7to §f(${r.maxX}, ${r.maxY}, ${r.maxZ})")
         sender.sendMessage("§7Pieces: §f${city.pieces.size}")
-        sender.sendMessage("§7End Ship: ${if (city.hasShip) "§byes ⛵" else "§7none found (ships are a 12.5% roll per bridge)"}")
-        sender.sendMessage("§7Snapshot: ${if (plugin.snapshotManager.hasSnapshot(city.id)) "§acaptured" else "§enone — run /betterend snapshot ${city.id}"}")
+        sender.sendMessage("§7End Ship: ${if (city.hasShip) "§byes" else "§7none found (not every city has one)"}")
+        sender.sendMessage("§7Snapshot: ${if (plugin.snapshotManager.hasSnapshot(city.id)) "§asaved" else "§enone yet, run /betterend snapshot ${city.id}"}")
         val cycle = plugin.cityManager.cycleStart(city.id)
         if (cycle > 0) {
             val hours = (System.currentTimeMillis() - cycle) / 3_600_000
@@ -148,14 +149,27 @@ class BeCommand(private val plugin: BetterEnd) : BasicCommand {
         val city = resolve(sender, idArg) ?: return
         val world = city.getWorld() ?: run { sender.sendMessage("§cWorld '${city.world}' is not loaded."); return }
         val r = city.region
-        val dest = Location(world, (r.minX + r.maxX) / 2.0 + 0.5, r.maxY + 1.0, (r.minZ + r.maxZ) / 2.0 + 0.5)
-        plugin.scheduler.runAtEntity(player, Runnable { player.teleport(dest) })
+        // Stand on top of the first piece (the city's base tower): the middle
+        // of the whole city's box can be open void.
+        val base = city.pieces.firstOrNull() ?: r
+        val x = (base.minX + base.maxX) / 2
+        val z = (base.minZ + base.maxZ) / 2
+        val fallback = Location(world, (r.minX + r.maxX) / 2.0 + 0.5, r.maxY + 1.0, (r.minZ + r.maxZ) / 2.0 + 0.5)
         player.sendMessage("§7Teleporting to city §f#${city.id}§7.")
+        plugin.launchAsync {
+            world.getChunkAtAsync(x shr 4, z shr 4).await()
+            plugin.scheduler.runAtLocation(Location(world, x.toDouble(), 0.0, z.toDouble()), Runnable {
+                val top = world.getHighestBlockYAt(x, z)
+                val dest = if (top > world.minHeight) Location(world, x + 0.5, top + 1.0, z + 0.5) else fallback
+                // Folia refuses teleport(); teleportAsync works everywhere.
+                plugin.scheduler.runAtEntity(player, Runnable { player.teleportAsync(dest) })
+            })
+        }
     }
 
     private fun handleSnapshot(sender: CommandSender, idArg: String?) {
         val city = resolve(sender, idArg) ?: return
-        sender.sendMessage("§7Capturing snapshot of city #${city.id} — this may take a few seconds…")
+        sender.sendMessage("§7Saving a copy of city #${city.id}. This may take a few seconds...")
         plugin.launchAsync {
             val n = plugin.snapshotManager.capture(city)
             sender.sendMessage(if (n >= 0) "§aSnapshot captured for city #${city.id} ($n cells)." else "§cSnapshot failed (see console).")
@@ -164,20 +178,20 @@ class BeCommand(private val plugin: BetterEnd) : BasicCommand {
 
     /**
      * Full city refresh: restore blocks from the snapshot (when one exists),
-     * clear everyone's loot copies, and start a fresh loot cycle — which also
+     * clear everyone's loot copies, and start a fresh loot cycle - which also
      * re-arms elytra claims in per-refresh mode. Per-ship/global claims are
      * deliberately untouched; that's what clearclaims is for.
      */
     private fun handleReset(sender: CommandSender, idArg: String?) {
         val city = resolve(sender, idArg) ?: return
-        sender.sendMessage("§7Resetting city #${city.id}…")
+        sender.sendMessage("§7Resetting city #${city.id}...")
         plugin.launchAsync {
             val restored = if (plugin.snapshotManager.hasSnapshot(city.id)) plugin.snapshotManager.restore(city) else -1
             val cleared = plugin.containerLootManager.clearCity(city.id)
             plugin.cityManager.forceNewCycle(city.id)
             plugin.cityManager.persistCycleStart(city.id)
             plugin.cityManager.setLastReset(city.id, System.currentTimeMillis())
-            val blocks = if (restored >= 0) "$restored blocks restored" else "no snapshot — blocks untouched"
+            val blocks = if (restored >= 0) "$restored blocks restored" else "no snapshot, so blocks untouched"
             sender.sendMessage("§aCity #${city.id} reset: $blocks, $cleared loot copies cleared, fresh loot for everyone.")
         }
     }
@@ -187,7 +201,7 @@ class BeCommand(private val plugin: BetterEnd) : BasicCommand {
         val target = resolveTarget(sender, name) ?: return
         plugin.launchAsync {
             val n = plugin.containerLootManager.clearPlayer(city.id, target)
-            sender.sendMessage("§aCleared $n container cop${if (n == 1) "y" else "ies"} for $name in city #${city.id} — they can loot it fresh.")
+            sender.sendMessage("§aCleared $n container cop${if (n == 1) "y" else "ies"} for $name in city #${city.id}. They can loot it fresh.")
         }
     }
 
@@ -195,7 +209,7 @@ class BeCommand(private val plugin: BetterEnd) : BasicCommand {
         val city = resolve(sender, idArg) ?: return
         plugin.launchAsync {
             val n = plugin.elytraClaimManager.clearCity(city.id)
-            sender.sendMessage("§aCleared $n elytra claim${if (n == 1) "" else "s"} for city #${city.id} — its ship elytra is claimable again by everyone.")
+            sender.sendMessage("§aCleared $n elytra claim${if (n == 1) "" else "s"} for city #${city.id}. Everyone can claim its ship's elytra again.")
         }
     }
 
@@ -203,20 +217,25 @@ class BeCommand(private val plugin: BetterEnd) : BasicCommand {
         val city = resolve(sender, idArg) ?: return
         plugin.launchAsync {
             val ok = plugin.cityManager.deleteCity(city.id)
-            if (ok) plugin.snapshotManager.deleteSnapshot(city.id)
+            if (ok) {
+                plugin.snapshotManager.deleteSnapshot(city.id)
+                plugin.elytraClaimManager.dropCity(city.id)
+                plugin.containerLootManager.dropCity(city.id)
+                plugin.discoveryManager.forget(city)
+            }
             sender.sendMessage(if (ok) "§aDeleted city #${city.id} (loot, claims and snapshot removed)." else "§cDelete failed.")
         }
     }
 
-    @Suppress("DEPRECATION")
     private fun resolveTarget(sender: CommandSender, name: String?): UUID? {
         if (name.isNullOrBlank()) {
             sender.sendMessage("§cProvide a player name.")
             return null
         }
         plugin.server.getPlayerExact(name)?.let { return it.uniqueId }
-        val off = plugin.server.getOfflinePlayer(name)
-        if (!off.hasPlayedBefore() && !off.isOnline) {
+        // The cached lookup never blocks on a Mojang web request.
+        val off = plugin.server.getOfflinePlayerIfCached(name)
+        if (off == null || (!off.hasPlayedBefore() && !off.isOnline)) {
             sender.sendMessage("§cNo player named '$name' has been seen on this server.")
             return null
         }

@@ -29,16 +29,16 @@ import org.bukkit.persistence.PersistentDataType
 /**
  * Renewable elytras, the item-frame way: the ship's elytra **item frame stays
  * an item frame**. Punching it (the vanilla pick-up interaction) puts a fresh
- * elytra straight into the puncher's inventory while the frame — elytra and
- * all — stays put for the next player. No vault block, no datapack, nothing
+ * elytra straight into the puncher's inventory while the frame - elytra and
+ * all - stays put for the next player. No vault block, no datapack, nothing
  * to relearn.
  *
  * - **Identification**: when a chunk's entities load in the End, any item
  *   frame displaying an elytra inside an END_CITY structure is PDC-tagged as
  *   a ship frame. Player-placed frames are tagged at place time and never
  *   converted, so builds inside a city are safe.
- * - **Claiming**: [PlayerItemFrameChangeEvent] (REMOVE) is cancelled — the
- *   frame never loses its elytra — and the claim rules run instead: claim
+ * - **Claiming**: [PlayerItemFrameChangeEvent] (REMOVE) is cancelled - the
+ *   frame never loses its elytra - and the claim rules run instead: claim
  *   mode (per-ship / per-refresh / global), then the optional cost item is
  *   consumed, then a fresh elytra is handed over.
  * - **AntiDupe compat**: the handed-out elytra is pre-stamped with the
@@ -63,11 +63,11 @@ class ElytraFrameListener(private val plugin: BetterEnd) : Listener {
             val cost = plugin.elytraClaimManager.costStack()
             val levels = plugin.config.getInt("elytra.cost.levels", 0)
             if (cost == null && levels <= 0) return Component.text("Punch to claim your Elytra", NamedTextColor.GRAY)
-            var text = Component.text("Elytra — costs ", NamedTextColor.GRAY)
+            var text = Component.text("Elytra costs ", NamedTextColor.GRAY)
             if (levels > 0) text = text.append(Component.text("$levels levels", NamedTextColor.AQUA))
             if (levels > 0 && cost != null) text = text.append(Component.text(" and ", NamedTextColor.GRAY))
             if (cost != null) {
-                text = text.append(Component.text("${cost.amount} × ", NamedTextColor.AQUA))
+                text = text.append(Component.text("${cost.amount} x ", NamedTextColor.AQUA))
                     .append(cost.effectiveName().color(NamedTextColor.AQUA))
             }
             return text
@@ -84,6 +84,23 @@ class ElytraFrameListener(private val plugin: BetterEnd) : Listener {
             val dTag = displayTag(plugin)
             val wantHint = plugin.config.getBoolean("elytra.enabled", true) &&
                 plugin.config.getBoolean("elytra.text-display", true)
+            if (plugin.scheduler.isFolia) {
+                // Folia has no thread that may scan a whole world, so each
+                // tracked frame updates its own hint on its own region.
+                for (frame in loadedShipFrames) {
+                    plugin.scheduler.runAtEntity(frame, Runnable {
+                        val hints = frame.world.getNearbyEntitiesByType(TextDisplay::class.java, hintLocation(frame), 1.5) {
+                            it.persistentDataContainer.has(dTag, PersistentDataType.BYTE)
+                        }
+                        when {
+                            !wantHint -> hints.forEach { it.remove() }
+                            hints.isEmpty() -> spawnHintIfMissing(plugin, frame)
+                            else -> hints.forEach { it.text(hintText(plugin)) }
+                        }
+                    })
+                }
+                return
+            }
             for (world in plugin.server.worlds) {
                 if (world.environment != World.Environment.THE_END) continue
                 for (display in world.getEntitiesByClass(TextDisplay::class.java)) {
@@ -116,6 +133,8 @@ class ElytraFrameListener(private val plugin: BetterEnd) : Listener {
 
         private fun hintLocation(frame: ItemFrame): Location =
             frame.location.clone().add(0.0, 0.9, 0.0)
+
+        private val loadedShipFrames: MutableSet<ItemFrame> = java.util.concurrent.ConcurrentHashMap.newKeySet()
     }
 
     private val frameTag = frameTag(plugin)
@@ -150,8 +169,6 @@ class ElytraFrameListener(private val plugin: BetterEnd) : Listener {
 
     // ── aura ─────────────────────────────────────────────────────────────────
 
-    private val loadedShipFrames: MutableSet<ItemFrame> = java.util.concurrent.ConcurrentHashMap.newKeySet()
-
     init {
         // Frames already loaded before the plugin started never fire EntitiesLoadEvent.
         if (!plugin.scheduler.isFolia) {
@@ -166,8 +183,9 @@ class ElytraFrameListener(private val plugin: BetterEnd) : Listener {
 
     /** A sparse, eerie shimmer round each ship frame with a player close by, so players notice it. */
     private fun auraTick() {
-        if (!enabled() || !plugin.config.getBoolean("elytra.frame-aura", false)) return
+        // Pruned even with the aura off: every chunk reload adds a fresh frame object.
         loadedShipFrames.removeIf { !it.isValid }
+        if (!enabled() || !plugin.config.getBoolean("elytra.frame-aura", false)) return
         for (frame in loadedShipFrames) {
             plugin.scheduler.runAtEntity(frame, Runnable {
                 val loc = frame.location.toCenterLocation()
@@ -194,7 +212,7 @@ class ElytraFrameListener(private val plugin: BetterEnd) : Listener {
     }
 
     /**
-     * Whether [frame] is a ship's elytra frame — cheap tag check first, then a
+     * Whether [frame] is a ship's elytra frame - cheap tag check first, then a
      * one-time structure test that stamps the tag for next time.
      */
     private fun isShipFrame(frame: ItemFrame): Boolean {
@@ -202,12 +220,12 @@ class ElytraFrameListener(private val plugin: BetterEnd) : Listener {
         if (frame.persistentDataContainer.has(playerPlacedTag, PersistentDataType.BYTE)) return false
         if (frame.item.type != Material.ELYTRA) return false
         if (frame.world.environment != World.Environment.THE_END) return false
-        // Only ship frames — never player-built elytra displays elsewhere.
+        // Only ship frames - never player-built elytra displays elsewhere.
         // (Frames placed by players inside the city are caught by the
         // player-placed tag above.)
         if (!StructureUtil.isNear(frame.location, Structure.END_CITY, 8.0)) return false
         frame.persistentDataContainer.set(frameTag, PersistentDataType.BYTE, 1)
-        // A ship elytra frame is proof of a ship — flag the city (belt &
+        // A ship elytra frame is proof of a ship - flag the city (belt &
         // braces beside the snapshot capture's dragon-head fingerprint, e.g.
         // when snapshot.auto-capture is off).
         plugin.cityManager.getCachedCityAt(frame.location)?.takeIf { !it.hasShip }?.let { city ->
@@ -224,7 +242,7 @@ class ElytraFrameListener(private val plugin: BetterEnd) : Listener {
         val frame = event.itemFrame
         if (!isShipFrame(frame)) return
 
-        // The frame's elytra NEVER leaves — everything below hands out copies.
+        // The frame's elytra NEVER leaves - everything below hands out copies.
         // A right-click would spin the elytra, so it shows the price instead.
         event.isCancelled = true
         val player = event.player
@@ -234,7 +252,7 @@ class ElytraFrameListener(private val plugin: BetterEnd) : Listener {
             // Discovery registers the city asynchronously moments after its
             // chunks first load; a punch can only lose that race right after
             // generation.
-            player.sendActionBar(Component.text("This ship is still being registered — try again in a moment.", NamedTextColor.YELLOW))
+            player.sendActionBar(Component.text("This ship is still being registered. Try again in a moment.", NamedTextColor.YELLOW))
             return
         }
         rememberShip(frame)
@@ -244,7 +262,7 @@ class ElytraFrameListener(private val plugin: BetterEnd) : Listener {
                 com.esmpfun.betterend.managers.ElytraClaimManager.ClaimMode.PER_SHIP ->
                     "You've already claimed this ship's elytra."
                 com.esmpfun.betterend.managers.ElytraClaimManager.ClaimMode.PER_REFRESH ->
-                    "Already claimed — you can claim here again after this city's loot refreshes."
+                    "Already claimed. You can claim here again after this city's loot refreshes."
                 com.esmpfun.betterend.managers.ElytraClaimManager.ClaimMode.GLOBAL ->
                     "You've already claimed your elytra."
             }
@@ -284,20 +302,20 @@ class ElytraFrameListener(private val plugin: BetterEnd) : Listener {
         giveOrDrop(player, elytra)
 
         plugin.elytraClaimManager.record(city.id, player.uniqueId)
-        player.sendActionBar(Component.text("Elytra claimed — happy flying!", NamedTextColor.GREEN))
+        player.sendActionBar(Component.text("Elytra claimed. Happy flying!", NamedTextColor.GREEN))
         player.playSound(player.location, Sound.ENTITY_PLAYER_LEVELUP, 0.8f, 1.2f)
         if (plugin.config.getBoolean("debug.verbose-logging", false)) {
             plugin.logger.info("[Elytra] ${player.name} claimed at city #${city.id} (${frame.location.blockX},${frame.location.blockY},${frame.location.blockZ})")
         }
     }
 
-    /** "This elytra costs 20 levels and 10 × Netherite Scrap", plus how the doubling works. */
+    /** "This elytra costs 20 levels and 10 x Netherite Scrap", plus how the doubling works. */
     private fun priceMessage(price: com.esmpfun.betterend.managers.ElytraClaimManager.Price): Component {
         val parts = buildList {
             if (price.levels > 0) add(Component.text("${price.levels} levels", NamedTextColor.AQUA))
             val item = price.item
             if (item != null && price.items > 0) {
-                add(Component.text("${price.items} × ", NamedTextColor.AQUA).append(item.effectiveName().color(NamedTextColor.AQUA)))
+                add(Component.text("${price.items} x ", NamedTextColor.AQUA).append(item.effectiveName().color(NamedTextColor.AQUA)))
             }
         }
         var line = Component.text("This elytra ", NamedTextColor.GRAY)
@@ -347,8 +365,8 @@ class ElytraFrameListener(private val plugin: BetterEnd) : Listener {
     }
 
     /**
-     * Non-player damage (skeleton arrows, dispenser projectiles, …) would pop
-     * the elytra with no claim flow — block it. Player punches pass through so
+     * Non-player damage (skeleton arrows, dispenser projectiles, ...) would pop
+     * the elytra with no claim flow - block it. Player punches pass through so
      * [onFrameChange] can run the claim.
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)

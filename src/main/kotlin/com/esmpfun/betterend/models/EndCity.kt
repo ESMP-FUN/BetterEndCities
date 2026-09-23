@@ -8,7 +8,7 @@ import org.bukkit.World
  * A registered End City.
  *
  * [region] is the envelope AABB (union of all structure pieces). [origin] is
- * the raw structure bounding-box min corner — the stable identity used to
+ * the raw structure bounding-box min corner - the stable identity used to
  * dedup the same city seen across many chunk loads. [pieces] are the
  * per-structure-piece bounds used for exact provenance: a block counts as
  * city content only if it falls inside one of these. When the city generated
@@ -29,7 +29,7 @@ data class EndCity(
      * True once a ship has been positively identified in this city. The ship
      * is the `end_city/ship` template piece; since [org.bukkit.generator.structure.StructurePiece]
      * exposes no piece names, we fingerprint it by its unique dragon-head
-     * block (no other end city template contains one) — detected during
+     * block (no other end city template contains one) - detected during
      * snapshot capture, or when the ship's elytra frame is first seen.
      */
     val hasShip: Boolean = false,
@@ -53,7 +53,7 @@ data class EndCity(
         loc.world?.name == world && region.expanded(pad).contains(loc)
 
     /**
-     * Whether [loc] is inside an actual generated structure piece — the test
+     * Whether [loc] is inside an actual generated structure piece - the test
      * that decides if a container at [loc] is city loot vs. a player-built
      * block.
      */

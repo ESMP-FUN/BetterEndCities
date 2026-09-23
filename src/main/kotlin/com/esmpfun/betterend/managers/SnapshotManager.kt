@@ -5,10 +5,13 @@ import com.esmpfun.betterend.models.EndCity
 import com.esmpfun.betterend.utils.CompressionUtil
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.future.await
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import org.bukkit.Bukkit
 import org.bukkit.Location
+import org.bukkit.World
+import kotlin.coroutines.resume
 import java.io.File
 import java.io.Serializable
 import java.util.concurrent.atomic.AtomicInteger
@@ -17,15 +20,15 @@ import java.util.concurrent.atomic.AtomicInteger
  * Captures and restores an End City's structure to/from a gzip-compressed
  * file on disk (one per city id, in `snapshots/`).
  *
- * **Block-data only** — no tile-entity NBT. BetterEnd's loot is virtual
+ * **Block-data only** - no tile-entity NBT. BetterEnd's loot is virtual
  * (served from DB templates, never the physical chest), so a snapshot only
  * needs the block palette to restore the structure. This reverts griefing
  * back to the captured state. The ship's elytra item frame is an entity, so
- * a restore never touches it — the frame simply persists.
+ * a restore never touches it - the frame simply persists.
  *
- * **Scope** — only the cells inside each `city_pieces` bounding box are
+ * **Scope** - only the cells inside each `city_pieces` bounding box are
  * captured (air included, so a restore truly resets changes), NOT the full
- * city AABB — the void between towers stays untouched. Reads/writes hop
+ * city AABB - the void between towers stays untouched. Reads/writes hop
  * per-chunk to the owning region thread (Folia-safe).
  */
 class SnapshotManager(private val plugin: BetterEnd) {
@@ -44,8 +47,8 @@ class SnapshotManager(private val plugin: BetterEnd) {
 
     private fun maxCells() = plugin.config.getInt("snapshot.max-cells", 3_000_000)
 
-    /** Capture must cover at least what protection protects — the PADDED piece
-     *  region — so a reset can restore edge decoration that sits just outside
+    /** Capture must cover at least what protection protects - the PADDED piece
+     *  region - so a reset can restore edge decoration that sits just outside
      *  the exact piece bounds. */
     private fun capturePad() = plugin.config.getInt("protection.piece-padding", 3)
 
@@ -62,6 +65,15 @@ class SnapshotManager(private val plugin: BetterEnd) {
             }
         }
         return byChunk
+    }
+
+    /**
+     * Loads (or generates) a chunk off the server thread. Discovery captures a
+     * city the moment its first chunk appears, when most of its other chunks
+     * have never been generated; doing that synchronously stalls the server.
+     */
+    private suspend fun loadChunk(world: World, cx: Int, cz: Int) {
+        world.getChunkAtAsync(cx, cz).await()
     }
 
     private fun blockKey(x: Int, y: Int, z: Int): Long =
@@ -93,21 +105,24 @@ class SnapshotManager(private val plugin: BetterEnd) {
         for ((_, cells) in byChunk) {
             val rep = cells.first()
             val loc = Location(world, rep.first.toDouble(), rep.second.toDouble(), rep.third.toDouble())
+            loadChunk(world, rep.first shr 4, rep.third shr 4)
             suspendCancellableCoroutine<Unit> { cont ->
                 plugin.scheduler.runAtLocation(loc, Runnable {
-                    // Ensure the chunk is loaded before reading (Paper loads on access;
-                    // explicit keeps it correct on the owning region thread).
-                    if (!world.isChunkLoaded(rep.first shr 4, rep.third shr 4)) world.getChunkAt(rep.first shr 4, rep.third shr 4)
-                    for (c in cells) {
-                        // Per-cell isolation: one bad block must NOT drop the rest of the chunk.
-                        try {
-                            val data = world.getBlockAt(c.first, c.second, c.third).blockData.asString
-                            blocks[Triple(c.first - origin.first, c.second - origin.second, c.third - origin.third)] = data
-                        } catch (e: Exception) {
-                            if (failed++ < 5) plugin.logger.warning("[Snapshot] capture read failed at ${c.first},${c.second},${c.third}: ${e.message}")
+                    try {
+                        // Normally still loaded from loadChunk; this only covers an unload in between.
+                        if (!world.isChunkLoaded(rep.first shr 4, rep.third shr 4)) world.getChunkAt(rep.first shr 4, rep.third shr 4)
+                        for (c in cells) {
+                            // Per-cell isolation: one bad block must NOT drop the rest of the chunk.
+                            try {
+                                val data = world.getBlockAt(c.first, c.second, c.third).blockData.asString
+                                blocks[Triple(c.first - origin.first, c.second - origin.second, c.third - origin.third)] = data
+                            } catch (e: Exception) {
+                                if (failed++ < 5) plugin.logger.warning("[Snapshot] capture read failed at ${c.first},${c.second},${c.third}: ${e.message}")
+                            }
                         }
+                    } finally {
+                        cont.resume(Unit)
                     }
-                    cont.resume(Unit) {}
                 })
             }
         }
@@ -180,28 +195,32 @@ class SnapshotManager(private val plugin: BetterEnd) {
         val failed = AtomicInteger(0)
         for ((_, list) in byChunk) {
             val first = list.first().first
+            loadChunk(world, first.blockX shr 4, first.blockZ shr 4)
             plugin.scheduler.runAtLocation(first, Runnable {
-                if (!world.isChunkLoaded(first.blockX shr 4, first.blockZ shr 4)) world.getChunkAt(first.blockX shr 4, first.blockZ shr 4)
-                for ((bloc, str) in list) {
-                    // Per-block isolation: a single parse/set failure must NOT drop
-                    // the rest of the chunk.
-                    try {
-                        val bd = Bukkit.createBlockData(str)
-                        bloc.block.setBlockData(bd, false) // no physics — avoid cascade updates
-                        restored.incrementAndGet()
-                    } catch (e: Exception) {
-                        if (failed.getAndIncrement() < 5)
-                            plugin.logger.warning("[Snapshot] restore failed at ${bloc.blockX},${bloc.blockY},${bloc.blockZ} for '$str': ${e.message}")
+                try {
+                    if (!world.isChunkLoaded(first.blockX shr 4, first.blockZ shr 4)) world.getChunkAt(first.blockX shr 4, first.blockZ shr 4)
+                    for ((bloc, str) in list) {
+                        // Per-block isolation: a single parse/set failure must NOT drop
+                        // the rest of the chunk.
+                        try {
+                            val bd = Bukkit.createBlockData(str)
+                            bloc.block.setBlockData(bd, false) // no physics, so no cascade of updates
+                            restored.incrementAndGet()
+                        } catch (e: Exception) {
+                            if (failed.getAndIncrement() < 5)
+                                plugin.logger.warning("[Snapshot] restore failed at ${bloc.blockX},${bloc.blockY},${bloc.blockZ} for '$str': ${e.message}")
+                        }
                     }
+                } finally {
+                    if (remaining.decrementAndGet() == 0) done.complete(Unit)
                 }
-                if (remaining.decrementAndGet() == 0) done.complete(Unit)
             })
         }
         if (byChunk.isEmpty()) done.complete(Unit)
         done.await()
         val f = failed.get()
         plugin.logger.info("[Snapshot] Restored city #${city.id}: placed ${restored.get()}/$total cells" +
-            (if (f > 0) " ($f failures — see warnings above)" else ""))
+            (if (f > 0) " ($f failures, see warnings above)" else ""))
         return restored.get()
     }
 

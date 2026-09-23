@@ -20,7 +20,7 @@ import net.kyori.adventure.text.format.NamedTextColor
 import org.bukkit.entity.Player
 
 /**
- * BetterEnd's native MC26 configuration Dialogs — real in-game sliders,
+ * BetterEnd's native MC26 configuration Dialogs - real in-game sliders,
  * toggles and choice buttons, no resource pack, no hand-edited YAML. Same
  * pattern as Mantle's dialogs, verified against paper-api 26.1.2
  * (`io.papermc.paper.registry.data.dialog`).
@@ -28,14 +28,14 @@ import org.bukkit.entity.Player
  * A settings dialog is a single "notice" screen: a description body, a list
  * of inputs, and Save buttons whose custom-click callback receives the
  * filled-in [DialogResponseView]. Save handlers write straight into
- * config.yml (`config.set` + `saveConfig`) — every feature reads its config
+ * config.yml (`config.set` + `saveConfig`) - every feature reads its config
  * live, so changes apply immediately, no reload.
  */
 @Suppress("UnstableApiUsage")
 object BeDialogs {
 
     /**
-     * Dialog input keys only allow identifier characters — config paths like
+     * Dialog input keys only allow identifier characters - config paths like
      * `elytra.claim-mode` are rejected and the whole dialog fails to build.
      * Inputs are registered under a sanitized key; [showSettings] wraps the
      * response view so save handlers can keep reading by the original path.
@@ -76,10 +76,10 @@ object BeDialogs {
      * **[Back] [Save] [Save & Close] [Close]** (+ optional [extraButtons]
      * rendered before them, e.g. "Choose cost item").
      *
-     * - Back — return to the /betterend menu (unsaved edits discarded).
-     * - Save — persist + apply, then return to the menu.
-     * - Save & Close — persist + apply, dialog closes.
-     * - Close — plain exit, nothing saved.
+     * - Back - return to the /betterend menu (unsaved edits discarded).
+     * - Save - persist + apply, then return to the menu.
+     * - Save & Close - persist + apply, dialog closes.
+     * - Close - plain exit, nothing saved.
      *
      * [onSave] runs when either save button is clicked.
      */
@@ -94,7 +94,7 @@ object BeDialogs {
     ) {
         fun mapped(view: DialogResponseView): DialogResponseView = object : DialogResponseView {
             // Save handlers read by original config path; inputs were registered
-            // under sanitized keys — bridge transparently.
+            // under sanitized keys - bridge transparently.
             override fun payload() = view.payload()
             override fun getText(key: String) = view.getText(key.dialogKey())
             override fun getBoolean(key: String) = view.getBoolean(key.dialogKey())
@@ -134,7 +134,7 @@ object BeDialogs {
             // after_action defaults to CLOSE: every click would close the
             // screen, the game would re-grab the mouse, THEN the next screen
             // opens. NONE keeps the dialog up so Back/Save swap screen-to-
-            // screen — at the cost that a button with no action of its own
+            // screen - at the cost that a button with no action of its own
             // does nothing at all (see closeButton).
             //
             // pause defaults to true, and the server rejects a pausing dialog
@@ -173,7 +173,7 @@ object BeDialogs {
                     // Adventure defaults to uses = 1, which suits these
                     // screens: every button either navigates (the next screen
                     // is built fresh, with fresh callbacks) or closes, so no
-                    // button is legitimately clicked twice on one instance —
+                    // button is legitimately clicked twice on one instance -
                     // and single-use debounces double-clicks on Save for free.
                     ClickCallback.Options.builder().build(),
                 ),
@@ -187,7 +187,7 @@ object BeDialogs {
      *
      * These dialogs use after-action NONE so navigation buttons can swap in
      * the next screen instead of dismissing it. The consequence is that a
-     * button with no action does **nothing at all** — it can't fall back on
+     * button with no action does **nothing at all** - it can't fall back on
      * the after-action to close. Every exit button must close the dialog
      * itself, which is what this does.
      */
@@ -222,7 +222,7 @@ object BeDialogs {
         val close = closeButton(player, "Close", "Close the menu")
 
         val costLine = if (cost == null) "Claims are currently free."
-        else "A claim currently costs ${cost.amount} × ${cost.type.name.lowercase().replace('_', ' ')}."
+        else "A claim currently costs ${cost.amount} x ${cost.type.name.lowercase().replace('_', ' ')}."
 
         val base = DialogBase.builder(Component.text("Better End Cities", NamedTextColor.DARK_AQUA))
             .body(
@@ -253,7 +253,7 @@ object BeDialogs {
      * Elytra frame settings. The cost AMOUNT slider is rebuilt on every open
      * with `max = the chosen item's max stack size` (16 for ender pearls, 1
      * for a bed, 64 for most things), so an impossible cost can't be set.
-     * The cost ITEM itself is picked in the [CurrencyPickerView] — a real
+     * The cost ITEM itself is picked in the [CurrencyPickerView] - a real
      * ItemStack is the one thing a dialog can't express.
      */
     fun openElytra(plugin: BetterEnd, player: Player) {
@@ -282,6 +282,9 @@ object BeDialogs {
                 "",
                 "Cost: 0 = free. Otherwise a claim consumes that many of the",
                 "chosen item (currently: $itemName, stacks to $maxStack).",
+                "XP levels are taken on top of the item. With doubling on,",
+                "each elytra a player buys costs twice the one before, until",
+                "a loot refresh window has passed since that purchase.",
             ),
             inputs = listOf(
                 toggle("elytra.enabled", "Feature enabled", cfg.getBoolean("elytra.enabled", true)),
@@ -291,16 +294,37 @@ object BeDialogs {
                     currentMode.key,
                 ),
                 slider("elytra.cost.amount", "Cost ($itemName, 0 = free)", 0f, maxStack.toFloat(), 1f, currentAmount.toFloat()),
+                levelsSlider(cfg.getInt("elytra.cost.levels", 0)),
+                toggle("elytra.cost.double-each-claim", "Price doubles with each elytra bought", cfg.getBoolean("elytra.cost.double-each-claim", false)),
                 toggle("elytra.text-display", "Floating hint above the frame", cfg.getBoolean("elytra.text-display", true)),
+                toggle("elytra.frame-aura", "Shimmer around the frame when a player is near", cfg.getBoolean("elytra.frame-aura", false)),
             ),
             extraButtons = listOf(pickItem),
         ) { view ->
             view.getBoolean("elytra.enabled")?.let { cfg.set("elytra.enabled", it) }
             view.getText("elytra.claim-mode")?.let { cfg.set("elytra.claim-mode", it) }
             view.getFloat("elytra.cost.amount")?.let { cfg.set("elytra.cost.amount", it.toInt()) }
+            view.getFloat("elytra.cost.levels")?.let { cfg.set("elytra.cost.levels", it.toInt()) }
+            view.getBoolean("elytra.cost.double-each-claim")?.let { cfg.set("elytra.cost.double-each-claim", it) }
             view.getBoolean("elytra.text-display")?.let { cfg.set("elytra.text-display", it) }
+            view.getBoolean("elytra.frame-aura")?.let { cfg.set("elytra.frame-aura", it) }
         }
     }
+
+    // The slider tops out at 100 levels, or higher when config.yml already
+    // holds more, so opening and saving never lowers a hand-set price.
+    fun levelsSlider(current: Int): DialogInput =
+        slider("elytra.cost.levels", "XP levels per claim (0 = none)", 0f, maxOf(100, current).toFloat(), 1f, current.toFloat())
+
+    fun refreshSlider(label: String, current: Int): DialogInput =
+        slider("loot.refresh-hours", label, 0f, maxOf(168, current).toFloat(), 1f, current.toFloat())
+
+    val SCOPES = listOf(
+        Choice("whole-city", "The whole city"),
+        Choice("ship-only", "Only the ship and the city's chests"),
+    )
+
+    fun scopeKey(raw: String?): String = SCOPES.firstOrNull { it.id.equals(raw, ignoreCase = true) }?.id ?: "whole-city"
 
     /** End City discovery, per-player loot, protection and snapshot resets. */
     fun openCities(plugin: BetterEnd, player: Player) {
@@ -315,12 +339,15 @@ object BeDialogs {
                 "refreshed per city every 'refresh window' hours (0 = never).",
                 "Protection keeps the towers grief-free; auto-restore also",
                 "rebuilds the structure from its snapshot on each refresh.",
+                "'Only the ship' leaves towers and bridges open to players.",
             ),
             inputs = listOf(
                 toggle("discovery.enabled", "Register new End Cities automatically", cfg.getBoolean("discovery.enabled", true)),
                 toggle("loot.enabled", "Per-player container loot", cfg.getBoolean("loot.enabled", true)),
-                slider("loot.refresh-hours", "Loot refresh window (hours, 0 = never)", 0f, 168f, 1f, cfg.getInt("loot.refresh-hours", 12).toFloat()),
+                refreshSlider("Loot refresh window (hours, 0 = never)", cfg.getInt("loot.refresh-hours", 12)),
                 toggle("protection.enabled", "Grief protection", cfg.getBoolean("protection.enabled", true)),
+                singleOption("protection.scope", "What is protected", SCOPES, scopeKey(cfg.getString("protection.scope"))),
+                toggle("protection.dragon-head-takeable", "Players may take the ship's dragon head", cfg.getBoolean("protection.dragon-head-takeable", false)),
                 toggle("protection.block-place", "Also deny placing blocks", cfg.getBoolean("protection.block-place", true)),
                 toggle("protection.block-explosions", "Protect from explosions", cfg.getBoolean("protection.block-explosions", true)),
                 toggle("protection.notify-denied", "Tell players when a break is denied", cfg.getBoolean("protection.notify-denied", true)),
@@ -332,8 +359,9 @@ object BeDialogs {
                 "discovery.enabled", "loot.enabled", "protection.enabled",
                 "protection.block-place", "protection.block-explosions",
                 "protection.notify-denied", "snapshot.auto-capture",
-                "snapshot.auto-reset-on-refresh",
+                "snapshot.auto-reset-on-refresh", "protection.dragon-head-takeable",
             ).forEach { key -> view.getBoolean(key)?.let { cfg.set(key, it) } }
+            view.getText("protection.scope")?.let { cfg.set("protection.scope", it) }
             view.getFloat("loot.refresh-hours")?.let { cfg.set("loot.refresh-hours", it.toInt()) }
         }
     }

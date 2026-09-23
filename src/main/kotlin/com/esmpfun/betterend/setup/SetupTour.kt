@@ -18,18 +18,18 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * `/betterend setup` — a guided, zero-jargon tour through every setting, one
+ * `/betterend setup` - a guided, zero-jargon tour through every setting, one
  * dialog screen at a time (the BetterTrialChambers `/trial setup` idea).
  *
  * Each step is a small dialog: a plain-English explanation, one or two
- * inputs, and **[← Back] [Next →] [Finish later]**. "Next" saves that step's
- * inputs immediately (config.set + saveConfig — everything reads live), so
+ * inputs, and **[Back] [Next] [Finish later]**. "Next" saves that step's
+ * inputs immediately (config.set + saveConfig - everything reads live), so
  * quitting halfway loses nothing. Finishing (or skipping on the welcome
  * screen) sets `setup.completed`, which stops the op join reminder.
  *
  * Progress is per-player and in-memory; `/betterend setup` after a restart
  * simply starts from the top with every input pre-filled from the current
- * config — re-walking is harmless.
+ * config - re-walking is harmless.
  */
 @Suppress("UnstableApiUsage")
 object SetupTour {
@@ -52,7 +52,7 @@ object SetupTour {
                 "a player punches it (exactly like vanilla), gets an elytra in",
                 "their inventory, and the frame stays for the next player.",
                 "",
-                "'Who can claim, how often' is the big choice — 'once per",
+                "'Who can claim, how often' is the big choice. 'Once per",
                 "ship' is the classic, fair default.",
             ),
             inputs = { plugin ->
@@ -73,10 +73,10 @@ object SetupTour {
         Step(
             title = "Elytra cost",
             body = listOf(
-                "A claim can cost something — say, 1 shulker shell — or be",
-                "completely free (the default).",
+                "A claim can cost something, say 1 shulker shell or 10 XP",
+                "levels, or be completely free (the default).",
                 "",
-                "0 on the slider = free. To charge a different ITEM than the",
+                "0 on a slider = free. To charge a different ITEM than the",
                 "current one, use 'Choose Cost Item' in /betterend after the",
                 "tour: you pick it straight from your inventory there.",
             ),
@@ -89,11 +89,13 @@ object SetupTour {
                         0f, item.maxStackSize.toFloat(), 1f,
                         plugin.config.getInt("elytra.cost.amount", 0).toFloat(),
                     ),
+                    BeDialogs.levelsSlider(plugin.config.getInt("elytra.cost.levels", 0)),
                     BeDialogs.toggle("elytra.text-display", "Floating hint above the frame", plugin.config.getBoolean("elytra.text-display", true)),
                 )
             },
             onSave = { plugin, view ->
                 view.getFloat("elytra.cost.amount")?.let { plugin.config.set("elytra.cost.amount", it.toInt()) }
+                view.getFloat("elytra.cost.levels")?.let { plugin.config.set("elytra.cost.levels", it.toInt()) }
                 view.getBoolean("elytra.text-display")?.let { plugin.config.set("elytra.text-display", it) }
             },
         ),
@@ -101,7 +103,7 @@ object SetupTour {
             title = "Per-player loot",
             body = listOf(
                 "Every player gets their own private copy of each End City",
-                "chest — the second player to arrive doesn't find gutted",
+                "chest, so the second player to arrive doesn't find gutted",
                 "containers.",
                 "",
                 "The refresh window is per city: that many hours after a city",
@@ -111,7 +113,7 @@ object SetupTour {
             inputs = { plugin ->
                 listOf(
                     BeDialogs.toggle("loot.enabled", "Per-player container loot", plugin.config.getBoolean("loot.enabled", true)),
-                    BeDialogs.slider("loot.refresh-hours", "Refresh window (hours, 0 = never)", 0f, 168f, 1f, plugin.config.getInt("loot.refresh-hours", 12).toFloat()),
+                    BeDialogs.refreshSlider("Refresh window (hours, 0 = never)", plugin.config.getInt("loot.refresh-hours", 12)),
                 )
             },
             onSave = { plugin, view ->
@@ -126,15 +128,20 @@ object SetupTour {
                 "generated towers, bridges and the ship can't be broken or",
                 "built over. The empty void between them stays fully",
                 "buildable, and ops can bypass with a permission.",
+                "",
+                "'Only the ship' leaves towers and bridges open, but still",
+                "guards the ship and the city's loot chests.",
             ),
             inputs = { plugin ->
                 listOf(
                     BeDialogs.toggle("protection.enabled", "Grief protection", plugin.config.getBoolean("protection.enabled", true)),
+                    BeDialogs.singleOption("protection.scope", "What is protected", BeDialogs.SCOPES, BeDialogs.scopeKey(plugin.config.getString("protection.scope"))),
                     BeDialogs.toggle("protection.notify-denied", "Tell players when a break is denied", plugin.config.getBoolean("protection.notify-denied", true)),
                 )
             },
             onSave = { plugin, view ->
                 view.getBoolean("protection.enabled")?.let { plugin.config.set("protection.enabled", it) }
+                view.getText("protection.scope")?.let { plugin.config.set("protection.scope", it) }
                 view.getBoolean("protection.notify-denied")?.let { plugin.config.set("protection.notify-denied", it) }
             },
         ),
@@ -146,7 +153,7 @@ object SetupTour {
                 "any time.",
                 "",
                 "Auto-restore additionally rebuilds the city on every loot",
-                "refresh — nice for a truly renewable End, but it rewrites",
+                "refresh. Nice for a truly renewable End, but it rewrites",
                 "blocks while players may be inside, so it ships off.",
             ),
             inputs = { plugin ->
@@ -173,9 +180,9 @@ object SetupTour {
             progress[player.uniqueId] = 0
             plugin.scheduler.runAtEntity(player, Runnable { if (player.isOnline) openStep(plugin, player, 0) })
         }
-        val skip = BeDialogs.button("Skip — defaults are fine", NamedTextColor.YELLOW, "Everything works out of the box; you can re-run this anytime") { _ ->
+        val skip = BeDialogs.button("Skip, defaults are fine", NamedTextColor.YELLOW, "Everything works out of the box; you can re-run this anytime") { _ ->
             markCompleted(plugin)
-            player.sendMessage(Component.text("Setup skipped — the defaults are live. /betterend reopens the menu anytime.", NamedTextColor.GRAY))
+            player.sendMessage(Component.text("Setup skipped, the defaults are live. /betterend reopens the menu anytime.", NamedTextColor.GRAY))
             player.closeDialog()
         }
         val close = BeDialogs.closeButton(player, "Close", "Ask me again next time")
@@ -218,13 +225,13 @@ object SetupTour {
 
         val buttons = mutableListOf<ActionButton>()
         if (index > 0) {
-            buttons += BeDialogs.button("← Back", NamedTextColor.YELLOW, "Previous step (this screen's edits are not saved)") { _ ->
+            buttons += BeDialogs.button("Back", NamedTextColor.YELLOW, "Previous step (this screen's edits are not saved)") { _ ->
                 plugin.scheduler.runAtEntity(player, Runnable { if (player.isOnline) openStep(plugin, player, index - 1) })
             }
         }
         val lastStep = index == steps.lastIndex
         buttons += BeDialogs.button(
-            if (lastStep) "Save & finish ✔" else "Next →",
+            if (lastStep) "Save & finish" else "Next",
             NamedTextColor.GREEN,
             if (lastStep) "Save this step and finish the tour" else "Save this step and continue",
         ) { view ->
@@ -237,10 +244,10 @@ object SetupTour {
                 plugin.scheduler.runAtEntity(player, Runnable { if (player.isOnline) openStep(plugin, player, index + 1) })
             }
         }
-        val finishLater = BeDialogs.closeButton(player, "Finish later", "Close the tour — /betterend setup resumes right here")
+        val finishLater = BeDialogs.closeButton(player, "Finish later", "Close the tour. /betterend setup resumes right here")
 
         val base = DialogBase.builder(
-            Component.text("Setup (${index + 1}/${steps.size}) — ${step.title}", NamedTextColor.DARK_AQUA)
+            Component.text("Setup (${index + 1}/${steps.size}): ${step.title}", NamedTextColor.DARK_AQUA)
         )
             .body(step.body.map { DialogBody.plainMessage(Component.text(it, NamedTextColor.GRAY)) })
             .inputs(step.inputs(plugin))
@@ -264,10 +271,10 @@ object SetupTour {
             player.closeDialog()
             plugin.scheduler.runAtEntity(player, Runnable { if (player.isOnline) CurrencyPickerView(plugin).open(player) })
         }
-        val close = BeDialogs.closeButton(player, "Done", "Close — happy flying!")
+        val close = BeDialogs.closeButton(player, "Done", "Close. Happy flying!")
 
-        val costLine = if (cost == null) "Claims are free" else "A claim costs ${cost.amount} × ${cost.type.name.lowercase().replace('_', ' ')}"
-        val base = DialogBase.builder(Component.text("Setup complete ✔", NamedTextColor.DARK_AQUA))
+        val costLine = if (cost == null) "Claims are free" else "A claim costs ${cost.amount} x ${cost.type.name.lowercase().replace('_', ' ')}"
+        val base = DialogBase.builder(Component.text("Setup complete", NamedTextColor.DARK_AQUA))
             .body(
                 listOf(
                     "That's everything, Better End Cities is live:",

@@ -27,7 +27,7 @@ import org.bukkit.plugin.java.JavaPlugin
 import java.io.File
 
 /**
- * BetterEnd — turns the End into renewable, multiplayer-friendly content:
+ * BetterEnd - turns the End into renewable, multiplayer-friendly content:
  * per-player elytras straight from the ship's item frame (no vault block, no
  * datapack), per-player End City loot, grief protection, and snapshot-based
  * structure resets.
@@ -65,6 +65,8 @@ class BetterEnd : JavaPlugin() {
 
     lateinit var snapshotManager: SnapshotManager
         private set
+
+    private var lootListener: ContainerLootListener? = null
 
     /** Directory holding per-city snapshot files. */
     val snapshotsDir: File by lazy { File(dataFolder, "snapshots").apply { mkdirs() } }
@@ -107,7 +109,7 @@ class BetterEnd : JavaPlugin() {
         // registerCommand with a lifecycle event handler, and the lifecycle
         // manager stops accepting handlers the moment enable returns. Doing this
         // from a scheduled task throws "Cannot register lifecycle event handlers"
-        // and, because it aborts the rest of that task, leaves isReady false —
+        // and, because it aborts the rest of that task, leaves isReady false -
         // which silently disables every listener too. Registered after the
         // managers above so tab-completion always has them; BeCommand guards on
         // isReady for anything that needs the database.
@@ -121,14 +123,16 @@ class BetterEnd : JavaPlugin() {
                 elytraClaimManager.preload()
                 scheduler.runTask(Runnable {
                     server.pluginManager.registerEvents(CityDiscoveryListener(this@BetterEnd), this@BetterEnd)
-                    server.pluginManager.registerEvents(ContainerLootListener(this@BetterEnd), this@BetterEnd)
+                    val loot = ContainerLootListener(this@BetterEnd)
+                    lootListener = loot
+                    server.pluginManager.registerEvents(loot, this@BetterEnd)
                     server.pluginManager.registerEvents(ProtectionListener(this@BetterEnd), this@BetterEnd)
                     server.pluginManager.registerEvents(ElytraFrameListener(this@BetterEnd), this@BetterEnd)
                     server.pluginManager.registerEvents(SetupReminderListener(this@BetterEnd), this@BetterEnd)
-                    // Central GUI dispatcher — routes only BaseHolder inventories.
+                    // Central GUI dispatcher - routes only BaseHolder inventories.
                     server.pluginManager.registerEvents(VcGuiListener(), this@BetterEnd)
 
-                    // Core setup is done — flip the flag BEFORE the optional
+                    // Core setup is done - flip the flag BEFORE the optional
                     // integrations below. Every listener guards on isReady, so a
                     // throw from an add-on must never leave the plugin inert.
                     isReady = true
@@ -157,6 +161,9 @@ class BetterEnd : JavaPlugin() {
 
     override fun onDisable() {
         isReady = false
+        // Before the pool closes: loot inventories still open, or closed but not yet written.
+        runCatching { lootListener?.saveOpenOnShutdown() }
+            .onFailure { logger.warning("Could not save open loot inventories: ${it.message}") }
         io.github.darkstarworks.pluginpulse.PluginPulse.shutdown(this)
         MetricsService.shutdown()
         scheduler.cancelAllTasks()

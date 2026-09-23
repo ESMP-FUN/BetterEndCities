@@ -24,7 +24,7 @@ class CityManager(private val plugin: BetterEnd) {
      * lazily-evaluated per-city refresh window: the first player to loot a city
      * with no active (or an expired) cycle starts a new one, which clears
      * everyone's per-player copies so the city's loot is fresh again. No
-     * scheduler — the timer is only ever checked on a container open — so
+     * scheduler - the timer is only ever checked on a container open - so
      * cities refresh staggered by when each was first looted, never all at once.
      */
     private val cycleStarts = ConcurrentHashMap<Int, AtomicLong>()
@@ -105,7 +105,7 @@ class CityManager(private val plugin: BetterEnd) {
 
     /**
      * Persists a newly-discovered city and its pieces, caches it, and returns
-     * it — or null if a row with this origin already exists (UNIQUE collision,
+     * it - or null if a row with this origin already exists (UNIQUE collision,
      * e.g. a concurrent discovery). Idempotent against double-fire.
      */
     suspend fun registerCity(
@@ -155,7 +155,7 @@ class CityManager(private val plugin: BetterEnd) {
                 }
             }
         } catch (e: Exception) {
-            // Likely a UNIQUE collision from a concurrent discovery — treat as already-registered.
+            // Likely a UNIQUE collision from a concurrent discovery - treat as already-registered.
             plugin.logger.warning("[CityManager] registerCity failed for $world @ $origin: ${e.message}")
             null
         }
@@ -177,7 +177,7 @@ class CityManager(private val plugin: BetterEnd) {
             val now = System.currentTimeMillis()
             if (cur != 0L && now - cur < refreshMs) return false // active cycle, not due
             if (al.compareAndSet(cur, now)) return true          // we started the new cycle
-            // lost the race — another thread advanced it; re-read and re-check
+            // lost the race - another thread advanced it; re-read and re-check
         }
     }
 
@@ -213,7 +213,7 @@ class CityManager(private val plugin: BetterEnd) {
 
     /** Records a reset timestamp on a city (DB + cache). */
     suspend fun setLastReset(id: Int, at: Long) = withContext(Dispatchers.IO) {
-        val city = cache[id] ?: return@withContext
+        if (!cache.containsKey(id)) return@withContext
         try {
             plugin.databaseManager.connection.use { conn ->
                 conn.prepareStatement("UPDATE cities SET last_reset = ? WHERE id = ?").use { stmt ->
@@ -222,7 +222,7 @@ class CityManager(private val plugin: BetterEnd) {
                     stmt.executeUpdate()
                 }
             }
-            cache[id] = city.copy(lastReset = at)
+            cache.computeIfPresent(id) { _, c -> c.copy(lastReset = at) }
         } catch (e: Exception) {
             plugin.logger.warning("[CityManager] setLastReset($id) failed: ${e.message}")
         }
@@ -232,7 +232,7 @@ class CityManager(private val plugin: BetterEnd) {
      * Marks a city as (not) containing a ship (DB + cache). Set true when the
      * ship's unique dragon-head block is seen during snapshot capture, or when
      * its elytra frame is first identified. Never flips back to false
-     * automatically — a harvested dragon head doesn't un-ship the city.
+     * automatically - a harvested dragon head doesn't un-ship the city.
      */
     suspend fun setHasShip(id: Int, hasShip: Boolean) = withContext(Dispatchers.IO) {
         val city = cache[id] ?: return@withContext
@@ -245,7 +245,7 @@ class CityManager(private val plugin: BetterEnd) {
                     stmt.executeUpdate()
                 }
             }
-            cache[id] = city.copy(hasShip = hasShip)
+            cache.computeIfPresent(id) { _, c -> c.copy(hasShip = hasShip) }
         } catch (e: Exception) {
             plugin.logger.warning("[CityManager] setHasShip($id) failed: ${e.message}")
         }
@@ -255,7 +255,7 @@ class CityManager(private val plugin: BetterEnd) {
     suspend fun setShipAnchor(id: Int, x: Int, y: Int, z: Int) = withContext(Dispatchers.IO) {
         val city = cache[id] ?: return@withContext
         if (city.shipAnchor != null) return@withContext
-        cache[id] = city.copy(shipAnchor = Triple(x, y, z), hasShip = true)
+        cache.computeIfPresent(id) { _, c -> c.copy(shipAnchor = Triple(x, y, z), hasShip = true) }
         try {
             plugin.databaseManager.connection.use { conn ->
                 conn.prepareStatement("UPDATE cities SET ship_x = ?, ship_y = ?, ship_z = ?, has_ship = 1 WHERE id = ?").use { stmt ->
@@ -273,7 +273,7 @@ class CityManager(private val plugin: BetterEnd) {
     suspend fun setHeadTaken(id: Int) = withContext(Dispatchers.IO) {
         val city = cache[id] ?: return@withContext
         if (city.headTaken) return@withContext
-        cache[id] = city.copy(headTaken = true)
+        cache.computeIfPresent(id) { _, c -> c.copy(headTaken = true) }
         try {
             plugin.databaseManager.connection.use { conn ->
                 conn.prepareStatement("UPDATE cities SET head_taken = 1 WHERE id = ?").use { stmt ->
@@ -288,7 +288,7 @@ class CityManager(private val plugin: BetterEnd) {
 
     /** Records the snapshot file name on a city (DB + cache). */
     suspend fun setSnapshotFile(id: Int, fileName: String?) = withContext(Dispatchers.IO) {
-        val city = cache[id] ?: return@withContext
+        if (!cache.containsKey(id)) return@withContext
         try {
             plugin.databaseManager.connection.use { conn ->
                 conn.prepareStatement("UPDATE cities SET snapshot_file = ? WHERE id = ?").use { stmt ->
@@ -297,7 +297,7 @@ class CityManager(private val plugin: BetterEnd) {
                     stmt.executeUpdate()
                 }
             }
-            cache[id] = city.copy(snapshotFile = fileName)
+            cache.computeIfPresent(id) { _, c -> c.copy(snapshotFile = fileName) }
         } catch (e: Exception) {
             plugin.logger.warning("[CityManager] setSnapshotFile($id) failed: ${e.message}")
         }

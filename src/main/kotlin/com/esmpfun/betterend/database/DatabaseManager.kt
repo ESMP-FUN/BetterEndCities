@@ -89,10 +89,13 @@ class DatabaseManager(private val plugin: BetterEnd) {
     private suspend fun createTables() = withContext(Dispatchers.IO) {
         val autoId = if (_databaseType == DatabaseType.SQLITE)
             "INTEGER PRIMARY KEY AUTOINCREMENT" else "INT AUTO_INCREMENT PRIMARY KEY"
+        // MySQL's TEXT stops at 64 KB, which a chest of written books or full
+        // shulker boxes can pass; SQLite's TEXT has no such limit.
+        val bigText = if (_databaseType == DatabaseType.SQLITE) "TEXT" else "MEDIUMTEXT"
         connection.use { conn ->
             conn.createStatement().use { stmt ->
                 // Registered End Cities. (origin_x/y/z) = the structure
-                // bounding-box min corner — the stable dedup identity across
+                // bounding-box min corner - the stable dedup identity across
                 // every chunk of the city; the min/max_* region bounds are the
                 // union of the pieces.
                 stmt.execute(
@@ -114,7 +117,7 @@ class DatabaseManager(private val plugin: BetterEnd) {
                     )
                     """.trimIndent()
                 )
-                // Per-piece bounding boxes — exact provenance bounds (towers,
+                // Per-piece bounding boxes - exact provenance bounds (towers,
                 // bridges, and the ship when one generated).
                 stmt.execute(
                     """
@@ -127,7 +130,7 @@ class DatabaseManager(private val plugin: BetterEnd) {
                     )
                     """.trimIndent()
                 )
-                stmt.execute("CREATE INDEX IF NOT EXISTS idx_city_pieces_city ON city_pieces(city_id)")
+                createIndex(stmt, "idx_city_pieces_city", "city_pieces(city_id)")
 
                 // Per-player private container copies (Lootr-style). One row per
                 // (city, container position, player). Cleared per city on reset.
@@ -137,7 +140,7 @@ class DatabaseManager(private val plugin: BetterEnd) {
                         city_id INT NOT NULL,
                         x INT NOT NULL, y INT NOT NULL, z INT NOT NULL,
                         player_uuid VARCHAR(36) NOT NULL,
-                        contents TEXT NOT NULL,
+                        contents $bigText NOT NULL,
                         updated_at BIGINT NOT NULL,
                         PRIMARY KEY (city_id, x, y, z, player_uuid),
                         FOREIGN KEY (city_id) REFERENCES cities(id) ON DELETE CASCADE
@@ -152,7 +155,7 @@ class DatabaseManager(private val plugin: BetterEnd) {
                     CREATE TABLE IF NOT EXISTS container_template (
                         city_id INT NOT NULL,
                         x INT NOT NULL, y INT NOT NULL, z INT NOT NULL,
-                        contents TEXT NOT NULL,
+                        contents $bigText NOT NULL,
                         material VARCHAR(64) NOT NULL,
                         updated_at BIGINT NOT NULL,
                         PRIMARY KEY (city_id, x, y, z),
@@ -160,7 +163,7 @@ class DatabaseManager(private val plugin: BetterEnd) {
                     )
                     """.trimIndent()
                 )
-                // Elytra claims — one row per (city, player). claimed_at lets
+                // Elytra claims - one row per (city, player). claimed_at lets
                 // the per-refresh claim mode compare against the city's loot
                 // cycle start instead of needing explicit deletes.
                 stmt.execute(
@@ -174,7 +177,7 @@ class DatabaseManager(private val plugin: BetterEnd) {
                     )
                     """.trimIndent()
                 )
-                stmt.execute("CREATE INDEX IF NOT EXISTS idx_elytra_claims_player ON elytra_claims(player_uuid)")
+                createIndex(stmt, "idx_elytra_claims_player", "elytra_claims(player_uuid)")
             }
             // Columns added after 0.3.0. CREATE TABLE above covers new databases.
             val existing = HashSet<String>()
@@ -189,6 +192,50 @@ class DatabaseManager(private val plugin: BetterEnd) {
                     if (column !in existing) stmt.execute("ALTER TABLE cities ADD COLUMN $column $type")
                 }
             }
+            fixInclusiveBounds(conn)
+        }
+    }
+
+    /** MySQL has no `CREATE INDEX IF NOT EXISTS`; there the "already exists" error (1061) is the no-op. */
+    private fun createIndex(stmt: java.sql.Statement, name: String, on: String) {
+        if (_databaseType == DatabaseType.SQLITE) {
+            stmt.execute("CREATE INDEX IF NOT EXISTS $name ON $on")
+            return
+        }
+        try {
+            stmt.execute("CREATE INDEX $name ON $on")
+        } catch (e: java.sql.SQLException) {
+            if (e.errorCode != 1061) throw e
+        }
+    }
+
+    /**
+     * Before this fix every stored box was one block short on its max side
+     * (the structure API's max corner is inclusive, but was treated as
+     * exclusive). Grows every stored box by that block, exactly once.
+     */
+    private fun fixInclusiveBounds(conn: Connection) {
+        conn.createStatement().use { stmt ->
+            stmt.execute("CREATE TABLE IF NOT EXISTS be_meta (k VARCHAR(64) NOT NULL PRIMARY KEY, v VARCHAR(255))")
+        }
+        val done = conn.prepareStatement("SELECT 1 FROM be_meta WHERE k = 'inclusive_bounds'").use { stmt ->
+            stmt.executeQuery().use { it.next() }
+        }
+        if (done) return
+        conn.autoCommit = false
+        try {
+            conn.createStatement().use { stmt ->
+                for (table in listOf("cities", "city_pieces")) {
+                    stmt.executeUpdate("UPDATE $table SET max_x = max_x + 1, max_y = max_y + 1, max_z = max_z + 1")
+                }
+                stmt.executeUpdate("INSERT INTO be_meta (k, v) VALUES ('inclusive_bounds', '1')")
+            }
+            conn.commit()
+        } catch (e: Exception) {
+            conn.rollback()
+            throw e
+        } finally {
+            conn.autoCommit = true
         }
     }
 

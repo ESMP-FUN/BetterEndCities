@@ -5,6 +5,7 @@ import com.esmpfun.betterend.models.EndCity
 import org.bukkit.Material
 import org.bukkit.NamespacedKey
 import org.bukkit.block.Block
+import org.bukkit.block.BlockFace
 import org.bukkit.block.TileState
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
@@ -12,12 +13,16 @@ import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
 import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.block.BlockExplodeEvent
+import org.bukkit.event.block.BlockPistonExtendEvent
+import org.bukkit.event.block.BlockPistonRetractEvent
 import org.bukkit.event.block.BlockPlaceEvent
+import org.bukkit.event.entity.EntityChangeBlockEvent
 import org.bukkit.event.entity.EntityExplodeEvent
+import org.bukkit.event.player.PlayerBucketEmptyEvent
 import org.bukkit.persistence.PersistentDataType
 
 /**
- * Griefing protection for registered End Cities — bounds-based per structure
+ * Griefing protection for registered End Cities - bounds-based per structure
  * piece, NOT palette-based.
  *
  * End cities are built mostly from plain purpur and end stone bricks, so a
@@ -105,6 +110,44 @@ class ProtectionListener(private val plugin: BetterEnd) : Listener {
         if (shipOnly() && !city.inShip(event.block.location, pad())) return
         event.isCancelled = true
         notifyDenied(event.player, city, event.block)
+    }
+
+    /** Emptying a bucket places water or lava without any BlockPlaceEvent. */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    fun onBucketEmpty(event: PlayerBucketEmptyEvent) {
+        if (!enabled() || !plugin.isReady) return
+        if (event.player.hasPermission("betterend.bypass.protection")) return
+        if (!plugin.config.getBoolean("protection.block-place", true)) return
+        val city = protectingCity(event.block) ?: return
+        if (shipOnly() && !city.inShip(event.block.location, pad())) return
+        event.isCancelled = true
+        notifyDenied(event.player, city, event.block)
+    }
+
+    /** A piston just outside the city could otherwise push or pull city blocks out of place. */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    fun onPistonExtend(event: BlockPistonExtendEvent) {
+        if (!enabled() || !plugin.isReady) return
+        if (movesProtected(event.blocks, event.direction)) event.isCancelled = true
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    fun onPistonRetract(event: BlockPistonRetractEvent) {
+        if (!enabled() || !plugin.isReady) return
+        if (movesProtected(event.blocks, event.direction)) event.isCancelled = true
+    }
+
+    // Both neighbours are checked because the retract event's direction is the piston's facing, not the pull.
+    private fun movesProtected(blocks: List<Block>, direction: BlockFace): Boolean = blocks.any {
+        isProtected(it) || isProtected(it.getRelative(direction)) || isProtected(it.getRelative(direction.oppositeFace))
+    }
+
+    /** Withers chewing through walls, falling sand or anvils landing in the city, and similar. */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    fun onEntityChangeBlock(event: EntityChangeBlockEvent) {
+        if (!enabled() || !plugin.isReady) return
+        if (event.entity is Player) return
+        if (isProtected(event.block)) event.isCancelled = true
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)

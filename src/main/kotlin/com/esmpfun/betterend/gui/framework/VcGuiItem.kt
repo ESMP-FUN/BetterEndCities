@@ -16,24 +16,24 @@ import org.bukkit.inventory.ItemStack
  * (InventoryFramework, InvUI, TriumphGUI): those expose raw
  * `InventoryClickEvent` to the consumer and force them to write the
  * listener manually. Here, declaring `acceptsBottomShiftClick = true`
- * is enough — the central [VcGuiListener] handles the rest.
+ * is enough - the central [VcGuiListener] handles the rest.
  *
  * @property stack The item rendered into the slot. The framework calls
- *   `Inventory.setItem(slot, stack)` directly — no cloning, no mutation
+ *   `Inventory.setItem(slot, stack)` directly - no cloning, no mutation
  *   on the framework side.
  * @property onClick Fired by the listener after permission re-check.
  *   Receives a [ClickContext] snapshot. Return value is ignored (Kotlin
- *   `Unit`) — mutation goes through closure-captured state.
+ *   `Unit`) - mutation goes through closure-captured state.
  * @property acceptsBottomShiftClick When true, a shift-click on ANY
  *   item in the player's own inventory while this GUI is open routes
  *   the clicked item to *this* slot's [onClick] with
  *   [ClickContext.isBottomInv] = true. The bottom-inventory item is
- *   NOT moved — it stays in the player's inventory. Use this for the
+ *   NOT moved - it stays in the player's inventory. Use this for the
  *   "stamp" pattern (e.g. "click any item in your inventory to add it
  *   to this loot pool, keeping the item").
  * @property acceptsDrag When true, an [org.bukkit.event.inventory.InventoryDragEvent]
  *   that lands on this exact slot fires [VcGui.handleDrag] with a [DragContext].
- *   The cursor is NOT consumed — same stamp semantics. Drag
+ *   The cursor is NOT consumed - same stamp semantics. Drag
  *   configurations touching multiple top slots are always cancelled by
  *   the listener as the dup-exploit guard. For the bulk-deposit
  *   pattern, see [VcGui.handleDrag] override instead.

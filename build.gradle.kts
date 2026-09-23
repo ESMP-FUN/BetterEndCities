@@ -18,7 +18,7 @@ repositories {
 }
 
 dependencies {
-    // Paper API — the 26.1-26.2 track (the `-mc26` build). Built against the
+    // Paper API - the 26.1-26.2 track (the `-mc26` build). Built against the
     // OLDEST supported line (26.1.2 stable) so 26.2-only API can't slip in;
     // api-version '26.1' in paper-plugin.yml is a floor, so this jar loads on
     // 26.1.x and 26.2 alike. Everything it touches (dialogs, structure API,
@@ -37,7 +37,7 @@ dependencies {
     implementation("com.zaxxer:HikariCP:6.2.1")
     implementation("com.mysql:mysql-connector-j:9.1.0")
 
-    // PluginPulse — update checking + verified install staging.
+    // PluginPulse - update checking + verified install staging.
     implementation("com.github.darkstarworks.PluginPulse:pluginpulse-core:v0.8.0")
 
     // Anonymous usage metrics (relocated below)
@@ -61,7 +61,7 @@ tasks {
         // 26.3 servers; api-version in paper-plugin.yml is what keeps each jar
         // off the other's servers.
         archiveClassifier.set("mc26")
-        // Kotlin stdlib / kotlinx-coroutines NOT relocated — Bukkit must find
+        // Kotlin stdlib / kotlinx-coroutines NOT relocated - Bukkit must find
         // kotlin.* at runtime. HikariCP relocated to avoid clashing with other
         // plugins' shaded copies.
         relocate("com.zaxxer.hikari", "com.esmpfun.betterend.hikari")
@@ -69,13 +69,13 @@ tasks {
         // Relocated so multiple plugins can shade different FastStats versions.
         // Do NOT relocate com.google.gson: FastStats declares it as provided and
         // resolves it from the platform (Paper bundles gson), so it is never
-        // shaded here — rewriting those references would break at runtime.
+        // shaded here - rewriting those references would break at runtime.
         relocate("dev.faststats", "com.esmpfun.betterend.faststats")
         // Do NOT relocate org.sqlite (JNI native loading) or the MySQL driver
         // (driverClassName references its real package name at runtime).
         mergeServiceFiles()
 
-        // Strip signature files from the (signed) MySQL connector jar — shading a
+        // Strip signature files from the (signed) MySQL connector jar - shading a
         // signed jar without this throws "Invalid signature file digest" at load.
         exclude("META-INF/*.SF")
         exclude("META-INF/*.DSA")

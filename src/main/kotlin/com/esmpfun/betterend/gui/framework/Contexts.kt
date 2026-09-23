@@ -20,7 +20,7 @@ import org.bukkit.inventory.ItemStack
  *   inventory click on this item's slot.
  * @property event The original Bukkit event. Use only when you genuinely
  *   need state not exposed by the snapshot (e.g. `event.view`); avoid
- *   mutating the event from a handler — the framework has already
+ *   mutating the event from a handler - the framework has already
  *   decided cancellation by the time `onClick` fires.
  */
 data class ClickContext(
@@ -39,7 +39,7 @@ data class ClickContext(
  *
  * Fired only when the drag landed on a single top-slot with
  * [VcGuiItem.acceptsDrag] = true (the dup-exploit guard cancels every
- * other configuration). The cursor is **not** consumed — `acceptsDrag`
+ * other configuration). The cursor is **not** consumed - `acceptsDrag`
  * semantics are "stamp the item identity, don't transfer it."
  *
  * For the bulk-deposit pattern (drag many items in, close to commit),
