@@ -6,22 +6,12 @@ import org.bukkit.entity.Entity
 import org.bukkit.plugin.Plugin
 import java.util.concurrent.TimeUnit
 
-/**
- * Folia scheduler implementation using regionized scheduling.
- *
- * Folia splits the world into independent regions that tick in parallel.
- * Tasks must be scheduled to specific regions (by location or entity)
- * to ensure thread safety.
- *
- * This implementation uses Paper's Folia-compatible APIs which are
- * available in Paper 1.20+ when running on Folia.
- */
+/** Folia: regions tick in parallel, so work goes to the region that owns it. */
 class FoliaSchedulerAdapter(private val plugin: Plugin) : SchedulerAdapter {
 
     override val isFolia: Boolean = true
 
     override fun runTask(task: Runnable) {
-        // Use global region scheduler for non-location-specific tasks
         Bukkit.getGlobalRegionScheduler().run(plugin) { task.run() }
     }
 
@@ -31,7 +21,6 @@ class FoliaSchedulerAdapter(private val plugin: Plugin) : SchedulerAdapter {
 
     override fun runTaskLater(task: Runnable, delayTicks: Long): ScheduledTask {
         return if (delayTicks <= 0) {
-            // For immediate execution, we need to wrap in a cancellable task
             val foliaTask = Bukkit.getGlobalRegionScheduler().run(plugin) { task.run() }
             FoliaScheduledTask(foliaTask)
         } else {
@@ -41,7 +30,7 @@ class FoliaSchedulerAdapter(private val plugin: Plugin) : SchedulerAdapter {
     }
 
     override fun runTaskLaterAsync(task: Runnable, delayTicks: Long): ScheduledTask {
-        val delayMs = delayTicks * 50 // 1 tick = 50ms
+        val delayMs = delayTicks * 50
         val foliaTask = Bukkit.getAsyncScheduler().runDelayed(plugin, { task.run() }, maxOf(1, delayMs), TimeUnit.MILLISECONDS)
         return FoliaScheduledTask(foliaTask)
     }
@@ -50,7 +39,7 @@ class FoliaSchedulerAdapter(private val plugin: Plugin) : SchedulerAdapter {
         val foliaTask = Bukkit.getGlobalRegionScheduler().runAtFixedRate(
             plugin,
             { task.run() },
-            maxOf(1, delayTicks), // Folia requires delay >= 1
+            maxOf(1, delayTicks), // Folia rejects a delay below 1
             periodTicks
         )
         return FoliaScheduledTask(foliaTask)
@@ -62,7 +51,7 @@ class FoliaSchedulerAdapter(private val plugin: Plugin) : SchedulerAdapter {
         val foliaTask = Bukkit.getAsyncScheduler().runAtFixedRate(
             plugin,
             { task.run() },
-            maxOf(1, delayMs), // Minimum 1ms
+            maxOf(1, delayMs),
             periodMs,
             TimeUnit.MILLISECONDS
         )
@@ -96,12 +85,9 @@ class FoliaSchedulerAdapter(private val plugin: Plugin) : SchedulerAdapter {
     override fun cancelAllTasks() {
         Bukkit.getGlobalRegionScheduler().cancelTasks(plugin)
         Bukkit.getAsyncScheduler().cancelTasks(plugin)
-        // Note: Region and entity tasks are cancelled when the plugin is disabled
+        // Region and entity tasks are cancelled by Folia when the plugin disables.
     }
 
-    /**
-     * Wrapper for Folia's ScheduledTask.
-     */
     private class FoliaScheduledTask(private val task: io.papermc.paper.threadedregions.scheduler.ScheduledTask) : ScheduledTask {
         override fun cancel() {
             task.cancel()

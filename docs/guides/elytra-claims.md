@@ -1,114 +1,88 @@
 # Elytra Claims
 
-The headline feature: the End Ship's elytra item frame becomes renewable, without ever stopping being an item frame.
+Punching the End Ship's elytra frame gives the player a new elytra, and the frame keeps its own for the next player.
+
+Nothing changes from the player's side: same frame, same punch. There is no vault block, key item or datapack, and the ship looks exactly like vanilla.
 
 ***
 
-## How it works
-
-In vanilla, an End Ship's elytra sits in an item frame. Punching the frame pops the elytra out, and the frame is empty forever after. First player wins.
-
-Better End Cities steps in at that punch. The player gets a **brand new elytra** in their inventory, and the frame **keeps its own elytra** for the next player. From the player's side nothing looks or feels different. Same frame, same punch, same item.
-
-What that gives you over the vault-block approach other plugins use:
-
-* No datapack, no key item, no custom block
-* The ship looks exactly like a vanilla ship
-* Players already know how to do it, so there's nothing to explain
-* Shaders, resource packs and map mods all behave normally
-
 ## What's protected
 
-The frame matters, so it's protected:
-
-* Players can't break it
-* Explosions, mobs and arrows can't destroy it
+* Players can't break the ship's frame
+* Explosions, mobs and arrows can't knock it down or empty it
 * Its elytra can't be taken out and kept
+* Right-clicking the frame shows the player's price instead of turning the elytra
 
 {% hint style="info" %}
-**Frames players put up themselves are never touched.** Only the frame that came with the ship is managed. A frame a player hangs inside a city behaves completely normally, and can be broken, filled and emptied as usual.
+**Frames players hang themselves stay normal.** Only the frame that came with the ship is managed.
 {% endhint %}
 
 ***
 
 ## Claim modes
 
-`elytra.claim-mode` decides who can claim, and how often.
+`elytra.claim-mode` sets how often a player can claim.
 
-### `per-ship` (default)
-
-Each player can claim one elytra from **each ship**, once. Find a new ship, get a new elytra.
-
-Exploring keeps paying off, and a player arriving at a picked-over ship still gets theirs. This is what most servers want.
-
-### `per-refresh`
-
-Claims follow the city's [loot refresh](per-player-loot.md). When a city's loot comes back, everyone can claim from its ship again.
-
-Elytras become something players return for. Works naturally with a short `loot.refresh-hours`.
-
-### `global`
-
-Each player can claim **one elytra, ever**, across every ship on the server.
-
-Keeps elytras a milestone. Note that players can still get more the vanilla way. This limits claims through the plugin, not elytras in general.
+* **`per-ship`** (default) - one elytra from each ship. A new ship means a new elytra
+* **`per-refresh`** - claim again each time that city's [loot refreshes](per-player-loot.md). Suits a short `loot.refresh-hours`
+* **`global`** - one elytra in total, across every ship
 
 {% hint style="info" %}
-**Switching is safe.** Existing claim records aren't wiped. Going from `global` to `per-ship` means a player who used their one claim can now claim at ships they haven't visited. To deliberately reopen one ship for everyone, use `/betterend clearclaims <id>`.
+Switching modes keeps existing claims. `/betterend clearclaims <id>` lets everyone claim from one ship again.
 {% endhint %}
 
 ***
 
 ## Claim cost
 
-Free by default. To charge for a claim:
+Free by default. A claim can cost an item, XP levels, or both.
 
-1. `/betterend`, then **Choose Cost Item**
-2. Click any item in your inventory
-3. Set how many with the slider
+1. Run `/betterend` and open **Choose Cost Item**.
+2. Click an item in your inventory. It is kept, only copied as the cost.
+3. Press **Save & set amount**, then set **Cost** (how many of the item) and **XP levels per claim**.
 
-The item is stored exactly as it is, so **custom items work properly**. A named, enchanted item from another plugin stays exactly that item, and a player's plain diamond won't pay a cost set to a custom "Elytra Voucher".
-
-The slider **won't go past what that item can stack to**: 64 for most items, 16 for ender pearls, 1 for a bed. Setting it to `0` makes claims free again.
+The item is stored exactly, so custom items from other plugins work: a plain diamond won't pay for a named "Elytra Voucher". The amount can't go past what the item stacks to (64 for most items, 16 for ender pearls). `0` means no item.
 
 ```yaml
 elytra:
   cost:
-    item: ""      # Set this in-game, not by hand
-    amount: 0     # 0 = free
+    item: ""                  # set in game, not by hand
+    amount: 0                 # how many of the item, 0 = none
+    levels: 0                 # XP levels, 0 = none
+    double-each-claim: false
 ```
 
 {% hint style="warning" %}
-**Don't edit `cost.item` by hand.** It stores a whole item, not just an item name. The in-game picker is the only supported way to set it.
+**Don't edit `cost.item` by hand.** It holds a whole item, not a name. Use the picker.
 {% endhint %}
+
+### Doubling price
+
+With `elytra.cost.double-each-claim` on, each elytra a player buys costs double the one before: 10 levels, then 20, then 40. Items double the same way. Each purchase stops counting once `loot.refresh-hours` has passed since it, so the price drops back over time. With `loot.refresh-hours: 0` purchases count forever.
+
+If a player can't pay, nothing is taken and they're told the price.
 
 ### Ideas
 
-* **A stack of ender pearls.** Fits the theme, and uses up something the End produces plenty of
-* **Diamond blocks.** A simple wealth check
-* **A voucher from your shop.** Sell an "Elytra Voucher" item. The picker accepts it, and your economy plugin handles the price
-* **Phantom membranes.** Fits, since players need them for repairs anyway
+* **Ender pearls** - something the End produces plenty of
+* **Diamond blocks** - a simple wealth check
+* **A shop voucher** - sell an "Elytra Voucher" item and let your economy plugin set the price
+* **XP levels** - no item needed; turn on doubling to slow down repeat buyers
 
 ***
 
-## The floating note
+## Floating note and shimmer
 
-`elytra.text-display`, on by default, floats a small label above the ship's frame:
+* **`elytra.text-display`** (on) - a label above the frame: "Punch to claim" when free, otherwise the price
+* **`elytra.frame-aura`** (off) - a faint shimmer of particles around the frame when a player is near
 
-* **"Punch to claim"** when claims are free
-* The cost when you've set one
-
-It needs no resource pack and doesn't get in the way of the frame. Turn it off for a completely untouched-looking ship. The claim still works, players just aren't told about it.
+Both are only visual. Claiming works the same with them off.
 
 ***
 
 ## Better Anti-Dupe
 
-If [Better Anti-Dupe](https://github.com/ESMP-FUN/BetterAntiDupe) is installed, Better End Cities spots it automatically and **marks each claimed elytra as belonging to the player who claimed it**.
-
-Without that, renewable elytras look exactly like cheating to an anti-dupe system, since many identical elytras appear from one place. The mark means every claim is correctly credited from the moment it's made.
-
-Nothing to set up. The cost-item picker also warns you if you pick an item Better Anti-Dupe watches.
+With [Better Anti-Dupe](https://github.com/ESMP-FUN/BetterAntiDupe) installed, each claimed elytra is marked as the claimer's own, so it's never flagged as a copy. Nothing to set up. The cost-item picker warns you if you pick an item Better Anti-Dupe watches, because nobody could pay with it.
 
 ***
 
@@ -116,10 +90,10 @@ Nothing to set up. The cost-item picker also warns you if you pick an item Bette
 
 | Command | What it does |
 |---|---|
-| `/betterend clearclaims <id>` | Let everyone claim that city's ship elytra again |
-| `/betterend info <id>` | Show whether the city has a ship, and who has claimed |
+| `/betterend clearclaims <id>` | Let everyone claim from that city's ship again |
+| `/betterend info <id>` | Show whether the city has a ship |
 
-`clearclaims` is the one to use for a fresh event, or after you've changed the cost and want to start over. It clears claim history for one city without touching loot or blocks.
+`clearclaims` leaves loot and blocks alone. Use it for an event, or after changing the price.
 
 ***
 

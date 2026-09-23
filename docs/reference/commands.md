@@ -1,33 +1,32 @@
 # Commands
 
-Everything lives under `/betterend`. There are no short forms.
+Every command starts with `/betterend` and needs `betterend.admin` (ops have it). Players need no commands: they punch frames and open chests.
 
 {% hint style="info" %}
-**Press Tab** and the game completes things for you, including city numbers, which are suggested from the cities you've actually found.
+Press Tab to complete commands and city numbers.
 {% endhint %}
 
 ***
 
 ## Quick reference
 
-| Command | What it does | Permission |
-|---|---|---|
-| `/betterend` | Open the settings menu | `betterend.admin` |
-| `/betterend menu` | The same thing, spelled out | `betterend.admin` |
-| `/betterend setup` | Guided setup tour | `betterend.admin` |
-| `/betterend help` | List the commands | `betterend.admin` |
-| `/betterend list` | Every city found so far | `betterend.admin` |
-| `/betterend info <id>` | Details about one city | `betterend.admin` |
-| `/betterend tp <id>` | Teleport to a city | `betterend.admin` |
-| `/betterend snapshot <id>` | Save a copy of the city | `betterend.admin` |
-| `/betterend reset <id>` | Put the blocks back, fresh loot for everyone | `betterend.admin` |
-| `/betterend resetloot <id> <player>` | Let one player loot the city again | `betterend.admin` |
-| `/betterend clearclaims <id>` | Let everyone claim the ship's elytra again | `betterend.admin` |
-| `/betterend delete <id>` | Stop managing a city | `betterend.admin` |
-| `/betterend reload` | Re-read `config.yml` | `betterend.admin` |
-| `/betterend update <check\|download\|status\|restore\|ignore\|unignore>` | Check for and download new versions | `betterend.admin` |
+| Command | What it does |
+|---|---|
+| `/betterend` | Open the settings menu (same as `/betterend menu`) |
+| `/betterend setup` | Start the guided setup tour |
+| `/betterend help` | List the commands |
+| `/betterend list` | List every city found so far |
+| `/betterend info <id>` | Show details about one city |
+| `/betterend tp <id>` | Teleport to a city |
+| `/betterend snapshot <id>` | Save a copy of the city's blocks |
+| `/betterend reset <id>` | Put the blocks back and give everyone fresh loot |
+| `/betterend resetloot <id> <player>` | Let one player loot the city again |
+| `/betterend clearclaims <id>` | Let everyone claim from the city's ship again |
+| `/betterend delete <id>` | Stop managing a city |
+| `/betterend reload` | Re-read `config.yml` |
+| `/betterend update [check\|download\|status\|restore\|ignore\|unignore]` | Check for and download new versions |
 
-Every command needs `betterend.admin`, which ops have by default. There are no commands for ordinary players. They just punch frames and open chests.
+Leave out `<id>` while standing in a city to use that city.
 
 ***
 
@@ -35,138 +34,107 @@ Every command needs `betterend.admin`, which ops have by default. There are no c
 
 ### `/betterend`
 
-Opens the [settings menu](../getting-started/config-menu.md). `/betterend menu` does exactly the same.
-
-**In-game only**, because the menu is drawn by the player's game. From the console use `list`, `info`, `reset` and the rest.
+Opens the [settings menu](../getting-started/config-menu.md). In game only.
 
 ### `/betterend setup`
 
-Starts the [guided setup tour](../getting-started/config-menu.md#the-setup-tour): five screens, about two minutes, saving as you go.
-
-**In-game only.**
+Starts the [setup tour](../getting-started/config-menu.md#the-setup-tour): five screens, saving as you go. In game only.
 
 ### `/betterend list`
 
-Every city you've found, with its number, world and coordinates. Works from the console.
+Every registered city with its number, world and position. Click the position to teleport.
 
 ### `/betterend info <id>`
 
-Details for one city:
-
-* Its size, and how many towers it has
-* Whether it has a ship, and so an elytra frame
-* Whether a copy has been saved
-* Where it is in its loot countdown
-
-This is the first thing to run when something isn't behaving as you expect.
+Shows the city's world, bounds, number of pieces, whether it has a ship, whether a copy is saved, and how long ago its loot countdown started. Run this first when something seems wrong.
 
 ### `/betterend tp <id>`
 
-Teleports you there. **In-game only.**
+Teleports you on top of the city's base tower. In game only.
 
 ### `/betterend snapshot <id>`
 
-Saves a copy of that city's blocks right now, replacing any existing one.
-
-This normally happens automatically when a city is found, so you'd only run it by hand after repairing a city yourself, or if automatic saving was switched off at the time.
+Replaces the city's saved copy with its blocks as they are now. Normally done automatically when a city is found; run it after repairing a city by hand.
 
 ### `/betterend reset <id>`
 
-A full reset. Puts the blocks back from the saved copy **and** clears everyone's loot copies.
-
-There has to be a saved copy. Check with `info`.
+Puts the blocks back from the saved copy and clears everyone's loot copies. Without a saved copy it only clears the loot.
 
 {% hint style="warning" %}
-A reset rewrites blocks. Players inside can be shoved out of the way or suffocated, and anything built inside the city is erased. Check nobody's in there first.
+A reset can suffocate players inside and erases anything built there. Check the city is empty first.
 {% endhint %}
 
 ### `/betterend resetloot <id> <player>`
 
-Clears one player's loot copies for one city, so they can loot it again. Blocks and everyone else's copies are untouched.
-
-The precise option. Good for making it up to a player, or for an event.
+Clears one player's loot copies in one city. Blocks and other players are untouched. The player must have joined the server before.
 
 ### `/betterend clearclaims <id>`
 
-Clears who has claimed the elytra at one city, so everyone can claim from its ship again. Doesn't touch loot or blocks.
-
-Use it after changing the claim setting, or to run an event.
+Lets everyone claim from that city's ship again. Loot and blocks are untouched.
 
 ### `/betterend delete <id>`
 
-Stops the plugin managing a city. No more protection, no more per-player loot, no more elytra claims.
+Stops managing the city (protection, loot, claims) and deletes its saved copy.
 
 {% hint style="warning" %}
-**This doesn't demolish anything.** Blocks stay exactly as they are. The city will also be **found again next time it loads in**, unless you turn finding cities off or exclude its world. `delete` on its own isn't permanent.
+**Nothing is demolished.** The city is found again the next time it loads, unless you exclude its world or turn off `discovery.enabled`.
 {% endhint %}
 
 ### `/betterend reload`
 
-Re-reads `config.yml`. Use it after editing the file by hand. The in-game menu applies changes straight away and needs no reload.
+Re-reads `config.yml` after you edit it by hand. Changes made in the menu apply without it. `database`, `metrics` and `update` changes need a restart.
 
 ### `/betterend update`
 
-Checks for new versions against [GitHub Releases](https://github.com/ESMP-FUN/BetterEndCities/releases).
+Checks [GitHub Releases](https://github.com/ESMP-FUN/BetterEndCities/releases) for a new version.
 
 | Subcommand | What it does |
 |---|---|
-| `/betterend update` | The same as `check`, which is what you get with no subcommand |
-| `/betterend update check` | Look for a newer release |
-| `/betterend update download` | Download it, check it arrived intact, and **put it in place** for the next restart |
-| `/betterend update install` | Another name for `download` |
+| `/betterend update` or `update check` | Look for a newer version |
+| `/betterend update download` | Download it for the next restart (also `update install`) |
 | `/betterend update status` | Show where things stand |
-| `/betterend update restore` | Put the previous version back, to undo a bad update |
-| `/betterend update ignore <version>` | Stop being told about one specific version |
+| `/betterend update restore` | Put the previous version back |
+| `/betterend update ignore <version>` | Stop being told about one version |
 | `/betterend update unignore <version>` | Undo that |
 
-Nothing is ever swapped out underneath a running server. Updates are put in place ready and applied when you restart. Downloads are checked for damage, and your current jar is backed up first.
+Downloads are checked for damage, and your current jar is backed up first. The update is installed when you restart.
 
-{% hint style="warning" %}
-**`/betterend update apply` won't do anything here.** It exists to apply a downloaded update without restarting, but that needs an optional extra this plugin doesn't include. It reports:
-
-```
-Better End Cities: hot reload is not available - restart the server to apply.
-```
-
-That's deliberate. This plugin includes storage code that can't safely be swapped out while the server is running. Restart to apply.
-
-Note too that `/betterend update reload` and `/betterend reload` are **different commands**. The plain `/betterend reload` is the one you want for settings.
+{% hint style="info" %}
+`/betterend update apply` can't install without a restart for this plugin, and says so. Don't confuse `/betterend update reload` with `/betterend reload`: the second one reloads settings.
 {% endhint %}
 
 ### How much it does on its own
 
-By default it only **tells you** about a new version, and downloads nothing unless you ask. You can change that in `config.yml`:
+Set on the **Updates & Stats** page of `/betterend`, or in `config.yml`:
 
 ```yaml
 update:
-  mode: notify              # off, check-only, notify, download, or auto-stage
+  mode: notify
   check-interval-hours: 6
 ```
 
 | Mode | What happens |
 |---|---|
-| `off` | No checking at all |
-| `check-only` | Check quietly. You only see it in `/betterend update status` |
-| `notify` | **Default.** Check and tell admins. Downloads nothing |
-| `download` | Check, download, verify, and put it in place for the next restart |
-| `auto-stage` | Put it in place automatically as soon as an update appears |
+| `off` | No checking |
+| `check-only` | Check quietly; see `/betterend update status` |
+| `notify` | **Default.** Tell staff, who can run `/betterend update download` |
+| `download` | Same as `notify` |
+| `auto-stage` | Download it for the next restart by itself |
 
 ***
 
 ## From the console
 
-These work from the console: `list`, `info`, `snapshot`, `reset`, `resetloot`, `clearclaims`, `delete`, `reload`, `update`, `help`.
+Works from the console: `list`, `info`, `snapshot`, `reset`, `resetloot`, `clearclaims`, `delete`, `reload`, `update`, `help`. From the console, always give the city number.
 
-These are in-game only, because they open a menu or move you: `menu`, `setup`, `tp`.
+In game only: `menu`, `setup`, `tp`.
 
 ***
 
-## While the server is starting
+## Right after startup
 
-Anything other than `help` replies with:
+For a second or two after the server starts, commands other than `help` reply:
 
 ```
 Better End Cities is still starting up, try again in a moment.
 ```
-
-Setting up storage and loading your cities happens in the background, so there's a brief moment after startup where the plugin isn't ready yet. It sorts itself out in a second or two.

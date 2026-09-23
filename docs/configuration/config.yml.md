@@ -3,10 +3,10 @@
 Every setting in `plugins/BetterEndCities/config.yml`.
 
 {% hint style="info" %}
-**You may never need this page.** Everything here can be changed in-game from [the settings menu](../getting-started/config-menu.md), and those changes are written back to this file. This page is for people who'd rather edit the file.
+Every setting here is also in the [settings menu](../getting-started/config-menu.md), which saves back to this file.
 {% endhint %}
 
-After editing by hand, run `/betterend reload`. Lost the file? Delete it and restart, and a fresh one is written with every default.
+After editing by hand, run `/betterend reload`. `database` and `metrics` changes, and the `update` section, need a restart instead. To get a fresh file with every default, delete it and restart.
 
 ***
 
@@ -26,7 +26,7 @@ database:
 | Setting | Default | What it does |
 |---|---|---|
 | `type` | `sqlite` | `sqlite` needs no setup. `mysql` is for several servers sharing one End. A misspelling falls back to `sqlite` with a console warning |
-| `mysql.*` | | Ignored completely when `type` is `sqlite` |
+| `mysql.*` | | Ignored when `type` is `sqlite` |
 
 [More: Storage](storage.md)
 
@@ -71,16 +71,16 @@ elytra:
 | Setting | Default | What it does |
 |---|---|---|
 | `enabled` | `true` | Renewable elytra frames, on or off |
-| `claim-mode` | `per-ship` | `per-ship`: one per player per ship, ever. `per-refresh`: claimable again whenever that city's loot comes back. `global`: one per player in total, across every ship |
-| `cost.item` | `""` | What a claim costs. **Set this in-game**, not by hand |
-| `cost.amount` | `0` | How many it takes. `0` means no item |
-| `cost.levels` | `0` | Experience levels a claim also takes. `0` means none |
-| `cost.double-each-claim` | `false` | Each elytra a player buys costs double the one before. The price drops back once `loot.refresh-hours` has passed since each purchase |
-| `text-display` | `true` | Float a small note above the frame showing the cost, or "Punch to claim". Right-clicking the frame always shows the player's own price |
-| `frame-aura` | `false` | A faint shimmer of particles around the frame when a player is nearby |
+| `claim-mode` | `per-ship` | `per-ship`: one per player from each ship. `per-refresh`: again each time that city's loot comes back. `global`: one per player in total |
+| `cost.item` | `""` | The item a claim costs. Set it in game with **Choose Cost Item** |
+| `cost.amount` | `0` | How many of the item. `0` = no item |
+| `cost.levels` | `0` | XP levels a claim takes. `0` = none |
+| `cost.double-each-claim` | `false` | Each elytra a player buys costs double the one before. Each purchase stops counting after `loot.refresh-hours` |
+| `text-display` | `true` | A note above the frame showing the price, or "Punch to claim" |
+| `frame-aura` | `false` | A faint shimmer around the frame when a player is near |
 
 {% hint style="warning" %}
-`cost.item` stores a whole item, not just an item name. Use `/betterend`, **Choose Cost Item**. Editing it by hand will not work.
+`cost.item` holds a whole item, not a name. Editing it by hand won't work.
 {% endhint %}
 
 [More: Elytra Claims](../guides/elytra-claims.md)
@@ -97,12 +97,10 @@ loot:
 
 | Setting | Default | What it does |
 |---|---|---|
-| `enabled` | `true` | Every player gets their own copy of a city's chests |
-| `refresh-hours` | `12` | How long before a city's loot comes back. `0` means never |
+| `enabled` | `true` | Each player gets their own copy of a city's chests. Chests players place stay normal |
+| `refresh-hours` | `12` | Hours before a city's loot comes back, counted from its first looting. `0` = never |
 
-Each city counts down on its own, starting when someone first loots it, so cities never all refresh at once and cities nobody visits do no work. Only chests that came with the city count. Chests players place stay completely normal.
-
-The in-game slider goes up to 168 hours, which is one week. Larger numbers are accepted in the file.
+The menu slider goes up to 168 (a week). Larger numbers work in the file, and the slider then goes up to them.
 
 [More: Per-Player Loot](../guides/per-player-loot.md)
 
@@ -123,18 +121,16 @@ protection:
 
 | Setting | Default | What it does |
 |---|---|---|
-| `enabled` | `true` | Grief protection, the main switch |
-| `scope` | `whole-city` | `whole-city`: every tower, bridge and the ship. `ship-only`: just the ship and the city's own loot chests, so towers and bridges can be broken, built on and blown up. Pair it with `snapshot.auto-reset-on-refresh` |
-| `dragon-head-takeable` | `false` | Players can take the ship's dragon head. Once taken it is gone for good, and resets never put it back |
-| `piece-padding` | `3` | How many blocks protection reaches past each tower, to cover its trim and decoration |
-| `block-place` | `true` | Stop players building inside a protected part of the city |
-| `block-explosions` | `true` | Protect city blocks from creepers, TNT and other explosions |
-| `notify-denied` | `true` | Show a message just above the hotbar when a break or build is blocked |
-
-Each tower, bridge and the ship is protected separately rather than as one big box, so the space between them stays buildable.
+| `enabled` | `true` | The main switch |
+| `scope` | `whole-city` | `whole-city`: every tower, bridge and the ship. `ship-only`: only the ship and the city's loot chests |
+| `dragon-head-takeable` | `false` | Players may take the ship's dragon head once. Resets never put it back |
+| `piece-padding` | `3` | Blocks protection reaches past each tower's walls |
+| `block-place` | `true` | Also stop building inside, including buckets |
+| `block-explosions` | `true` | Also stop creepers, TNT and other explosions |
+| `notify-denied` | `true` | Tell the player why, just above the hotbar |
 
 {% hint style="warning" %}
-`betterend.bypass.protection` is given to **ops** by default. Testing protection while opped will make it look broken.
+Ops have `betterend.bypass.protection` by default, so protection looks broken when you test it as an op.
 {% endhint %}
 
 [More: Protection](../guides/protection.md)
@@ -152,12 +148,12 @@ snapshot:
 
 | Setting | Default | What it does |
 |---|---|---|
-| `max-cells` | `3000000` | A limit on how many blocks one saved copy may hold. Far larger than any real city |
-| `auto-capture` | `true` | Save a copy of each city as soon as it's found |
-| `auto-reset-on-refresh` | `false` | Also put the blocks back whenever a city's loot comes back |
+| `max-cells` | `3000000` | Most blocks one saved copy may hold. Far above any real city |
+| `auto-capture` | `true` | Save a copy of each city when it's found |
+| `auto-reset-on-refresh` | `false` | Also put the blocks back each time a city's loot comes back |
 
 {% hint style="warning" %}
-**`auto-reset-on-refresh` is off for a reason.** Putting blocks back rewrites the whole city, which can suffocate or shove aside players standing inside, and erases anything built in there. Turn it on if cities are just somewhere to farm. Leave it off if players make bases in them.
+Putting blocks back can suffocate players inside and erases anything built there. Leave `auto-reset-on-refresh` off if players build bases in cities.
 {% endhint %}
 
 [More: Saved Copies and Resets](../guides/snapshots-and-resets.md)
@@ -174,8 +170,10 @@ metrics:
 
 | Setting | Default | What it does |
 |---|---|---|
-| `enabled` | `true` | Anonymous usage numbers. Nothing about your players, just which settings are in use. Setting this to `false` also turns off error reporting |
-| `error-reporting` | `true` | Report this plugin's own errors automatically, so bugs get fixed without you having to file them. Other plugins' errors are never captured, and addresses, file paths, database passwords and player UUIDs are stripped out first |
+| `enabled` | `true` | Anonymous counts of which settings are in use. `false` also turns off error reporting |
+| `error-reporting` | `true` | Send this plugin's own errors, with IP addresses, file paths, passwords and player ids removed |
+
+Both take effect after a restart.
 
 [More: Metrics and Privacy](metrics.md)
 
@@ -183,7 +181,7 @@ metrics:
 
 ## update *(optional, not in the default file)*
 
-Add this only if you want to change how update checking behaves. It overrides what the plugin ships with. The **Updates & Stats** page of `/betterend` writes it for you. Changes here take effect after a restart.
+Changes how updates are handled. The **Updates & Stats** page of `/betterend` writes it for you. Takes effect after a restart.
 
 ```yaml
 update:
@@ -195,12 +193,12 @@ update:
 
 | Setting | Default | What it does |
 |---|---|---|
-| `mode` | `notify` | `off`, `check-only`, `notify` (tells admins, downloads nothing), `download`, or `auto-stage` |
+| `mode` | `notify` | `off`: never check. `check-only`: check quietly, see `/betterend update status`. `notify`: tell staff, who can download it with `/betterend update download`. `download`: the same as `notify`. `auto-stage`: download it for the next restart by itself |
 | `check-interval-hours` | `6` | How often to check |
-| `hold-new-updates` | `false` | Leave a brand-new release alone for a while, so one that turns out broken and gets fixed within hours is never picked up |
-| `hold-new-updates-hours` | `18` | How long to wait when the above is on |
+| `hold-new-updates` | `false` | Wait before taking a brand-new release, in case it turns out broken |
+| `hold-new-updates-hours` | `18` | How long to wait |
 
-`download` and `auto-stage` fetch updates and put them in place for the next restart. Nothing is ever swapped out underneath a running server.
+A downloaded update is installed on the next restart, never while the server runs.
 
 [More: Commands](../reference/commands.md#how-much-it-does-on-its-own)
 
@@ -213,7 +211,7 @@ setup:
   completed: false
 ```
 
-Set to `true` for you once the `/betterend setup` tour has been finished or skipped. While it's `false`, ops get a one-time reminder when they join. Set it back to `false` to see the reminder again.
+Set to `true` once the `/betterend setup` tour is finished or skipped. While it's `false`, ops get a one-time reminder when they join.
 
 ***
 
@@ -224,4 +222,4 @@ debug:
   verbose-logging: false
 ```
 
-Extra logging for chasing down a problem. Very noisy, so turn it on, reproduce the problem, then turn it back off. The output is useful to attach to a bug report.
+Extra console logging for a bug report. Turn it on, make the problem happen, then turn it off.

@@ -2,7 +2,7 @@
 
 [SIZE=5][B]Every player gets the elytra, and the item frame stays an item frame.[/B][/SIZE]
 
-[SIZE=3]Paper · Folia · Purpur · Minecraft 26.1+[/SIZE]
+[SIZE=3]Paper | Folia | Purpur | Minecraft 26.1+[/SIZE]
 
 The first player to reach an End Ship takes [B]the[/B] elytra.
 Everyone after them finds an empty frame and gutted chests.
@@ -41,7 +41,7 @@ Nobody can break the frame or knock the elytra out of it.
 
 Choose: once per ship, once per player, or claimable again after every loot refresh.
 
-Free, or charge any item you like. Pick it out of your own inventory in-game.
+Free, or charge any item (picked from your own inventory in game), XP levels, or both. The price can double with each elytra a player buys.
 [/SPOILER]
 [SPOILER="Loot"]
 Every player gets their own copy of what's in a city's chests.
@@ -51,9 +51,9 @@ Refreshes on a timer you set, and each city runs its own timer, so a hundred cit
 Chests players placed themselves are left alone.
 [/SPOILER]
 [SPOILER="Protection"]
-Towers, bridges and the ship survive creepers, TNT and griefers.
+Towers, bridges and the ship survive creepers, TNT, pistons and griefers. Or protect only the ship and let the towers be rebuilt on each refresh.
 
-The empty space between them is still yours to build in, so builders aren't fenced off the island.
+The empty space between towers is still free to build in.
 [/SPOILER]
 [SPOILER="Putting cities back"]
 A copy of every city is saved the moment it's found.
@@ -72,9 +72,9 @@ Or let that happen by itself on every loot refresh.
 [*][B]Java:[/B] 25+
 [*][B]Anything else:[/B] nothing. No datapack, no resource pack, no other plugins
 [/LIST]
-[B]Minecraft 26 only.[/B] This plugin uses pop-up menus and world information that don't exist in 1.21. There is no 1.21 version, and it will not start on one.
+[B]Minecraft 26 only.[/B] There is no 1.21 version, and this one won't start on 1.21.
 
-Optional: with [B]Better Anti-Dupe[/B] installed, claimed elytras are marked as genuine, so renewable elytras never look like copies.
+Optional: with [B]Better Anti-Dupe[/B] installed, claimed elytras are marked as the claimer's own, so they never look like copies.
 [CENTER][SIZE=3][COLOR=#808080]
 ------------------------------
 [/COLOR][/SIZE][/CENTER]
@@ -84,7 +84,7 @@ Optional: with [B]Better Anti-Dupe[/B] installed, claimed elytras are marked as 
 [*][ICODE]/betterend setup[/ICODE] - walks you through the settings
 [*][ICODE]/betterend list[/ICODE] - every city found so far
 [*][ICODE]/betterend info <id>[/ICODE] - details about one city
-[*][ICODE]/betterend tp <id>[/ICODE] - go there
+[*][ICODE]/betterend tp <id>[/ICODE] - teleport there
 [*][ICODE]/betterend snapshot <id>[/ICODE] - save a copy of the city so it can be put back
 [*][ICODE]/betterend reset <id>[/ICODE] - put the blocks back, fresh loot for everyone
 [*][ICODE]/betterend resetloot <id> <player>[/ICODE] - let one player loot it again
@@ -107,9 +107,9 @@ The source is on [URL='https://github.com/ESMP-FUN/BetterEndCities']GitHub[/URL]
 [SPOILER="Automatic bug reports and anonymous statistics"]
 Both are on by default, and either can be switched off.
 
-[B]Bug reports.[/B] When something in the plugin goes wrong, it's reported automatically, so it gets fixed without you having to notice and write it up. Only this plugin's errors are ever sent. Before anything leaves your server, addresses, file paths containing your username, database passwords and player ids are stripped out and replaced. Each report says which plugin version, which Minecraft version, whether you run Folia, roughly how many cities you have, and what the plugin was doing. Player names, chat, inventories and anything about your world are never included.
+[B]Bug reports.[/B] Only this plugin's own errors are sent, with IP addresses, file paths, passwords and player ids removed first. Each report says the plugin and Minecraft version, whether you run Folia, roughly how many cities you have, and what the plugin was doing. Nothing about your players or your world.
 
-[B]Statistics.[/B] Which storage you use, your claim setting, whether per-player loot is on, and roughly how many cities you have. That's it. City coordinates are never sent, and the city count is a range, not a list.
+[B]Statistics.[/B] Your storage type, claim setting, whether per-player loot is on, and a rough city count. No coordinates.
 
 Set [ICODE]metrics.enabled: false[/ICODE] to send nothing at all, or [ICODE]metrics.error-reporting: false[/ICODE] for bug reports only.
 [/SPOILER]
@@ -122,7 +122,7 @@ Set [ICODE]metrics.enabled: false[/ICODE] to send nothing at all, or [ICODE]metr
 [*][B]Source and issues:[/B] [URL='https://github.com/ESMP-FUN/BetterEndCities']github.com/ESMP-FUN/BetterEndCities[/URL]
 [*][B]Ko-fi:[/B] [URL='https://ko-fi.com/darkstarworks'](anonymous) donations are very welcome[/URL]
 [/LIST]
-[CENTER][SIZE=3][I]Tell me "if it did X, I'd use it" on Discord - there's a good chance it ships.[/I]
+[CENTER][SIZE=3][I]Tell me "if it did X, I'd use it" on Discord. There's a good chance it ships.[/I]
 [I]And if this made your End worth revisiting, a positive review here is the best way to support development.[/I][/SIZE]
 
 [URL='https://faststats.dev/project/better-end-cities'][IMG]https://img.shields.io/endpoint?url=https%3A%2F%2Ffaststats.dev%2Fapi%2Fshields%2Fbetter-end-cities%3Fmetric%3Dservers%26color%3Dblueviolet%26icon%3D1&style=flat[/IMG][/URL][/CENTER]

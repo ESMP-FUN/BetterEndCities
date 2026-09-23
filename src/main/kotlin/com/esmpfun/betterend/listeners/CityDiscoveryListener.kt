@@ -8,16 +8,7 @@ import org.bukkit.event.Listener
 import org.bukkit.event.world.ChunkLoadEvent
 import org.bukkit.generator.structure.Structure
 
-/**
- * Auto-discovery driver. On each chunk load, asks the server whether an End
- * City structure overlaps that chunk via [World.getStructures]; any hit is
- * handed to [com.esmpfun.betterend.managers.CityDiscoveryManager], which
- * dedups and registers. Empty for ~every chunk, so the hot path is cheap.
- *
- * ChunkLoadEvent fires on the chunk's owning region thread (Folia-correct for
- * the getStructures read); the manager extracts bounds here and defers DB
- * work async.
- */
+/** Hands every End City that reaches a loading chunk to the discovery manager. */
 class CityDiscoveryListener(private val plugin: BetterEnd) : Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

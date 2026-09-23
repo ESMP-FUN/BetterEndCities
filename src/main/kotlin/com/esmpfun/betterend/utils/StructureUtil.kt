@@ -6,14 +6,9 @@ import org.bukkit.generator.structure.Structure
 object StructureUtil {
 
     /**
-     * True if [loc] is inside, or within [near] blocks of, an instance of
-     * [structure] that reaches [loc]'s own chunk.
-     *
-     * Only that one chunk is asked: `World.getStructures` loads (or even
-     * generates) the chunk it is asked about, and on Folia a neighbouring
-     * chunk may belong to another region thread. Any point inside a
-     * structure's box has a reference in its own chunk, so nothing inside is
-     * missed.
+     * Whether [loc] is within [near] blocks of a [structure] that reaches its
+     * chunk. Only that chunk is asked: `getStructures` loads the chunk it's
+     * given, and a neighbour may belong to another Folia region.
      */
     fun isNear(loc: Location, structure: Structure, near: Double): Boolean {
         val world = loc.world ?: return false

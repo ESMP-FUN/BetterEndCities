@@ -1,8 +1,6 @@
 # Basic Configuration
 
-The defaults are ready to use. This page is about the handful of settings that actually change how your server plays. For the full file with every setting explained, see [config.yml](../configuration/config.yml.md).
-
-Everything here can be set in-game from [the settings menu](config-menu.md) instead of editing a file.
+The defaults work as they are. This page covers the few settings that change how your server plays. Every one of them can be set in the [settings menu](config-menu.md); the full list is in [config.yml](../configuration/config.yml.md).
 
 ***
 
@@ -10,9 +8,10 @@ Everything here can be set in-game from [the settings menu](config-menu.md) inst
 
 ```yaml
 elytra:
-  claim-mode: per-ship     # per-ship, per-refresh, or global
+  claim-mode: per-ship     # per-ship, per-refresh or global
   cost:
-    amount: 0              # 0 = free. Pick the item in-game
+    amount: 0              # 0 = no item. Pick the item in game
+    levels: 0              # 0 = no XP levels
 
 loot:
   enabled: true
@@ -20,11 +19,11 @@ loot:
 
 protection:
   enabled: true
-  piece-padding: 3
+  scope: whole-city        # whole-city or ship-only
 
 snapshot:
   auto-capture: true
-  auto-reset-on-refresh: false   # the one big opt-in
+  auto-reset-on-refresh: false
 
 discovery:
   enabled: true
@@ -35,53 +34,56 @@ discovery:
 
 ## How rare should elytras be?
 
-This is the decision that changes your server's feel the most.
+Set `elytra.claim-mode`:
 
 | Setting | What happens | Good for |
 |---|---|---|
-| `per-ship` | One elytra per player, per ship, forever | **Default.** Exploring still pays off, because more ships found means more elytras |
-| `per-refresh` | Players can claim again every time the city's loot comes back | Elytras as something players return for. Works well with a short refresh |
-| `global` | One elytra per player, ever, across the whole server | Keeping elytras a genuine milestone |
-
-`per-ship` is the sensible middle. Finding a *new* ship still matters, and nobody who arrives late is left with an empty frame.
+| `per-ship` | One elytra per player from each ship | **Default.** Finding more ships still pays off |
+| `per-refresh` | Claim again each time the city's loot comes back | Elytras players come back for |
+| `global` | One elytra per player in total | Keeping elytras rare |
 
 {% hint style="info" %}
-Changing this doesn't wipe who has already claimed. Switching from `global` to `per-ship` lets players who already claimed do so again at other ships. To deliberately clear one ship's history, use `/betterend clearclaims <id>`.
+Switching modes keeps existing claims. To reopen one ship for everyone, use `/betterend clearclaims <id>`.
 {% endhint %}
 
-## Should claims cost something?
+## Should an elytra cost something?
 
-Free by default. A cost turns the elytra into something to spend on, useful if your economy has too much of anything.
+Free by default. In `/betterend`:
 
-Set the item in-game with `/betterend`, **Choose Cost Item**, then set how many with the slider. The slider won't go past what that item can stack to.
+1. Open **Choose Cost Item** and click an item in your inventory.
+2. Open **Elytra Frames** and set how many it takes, plus any XP levels.
+3. Optionally turn on **Price doubles with each elytra bought**.
 
-Common choices: a stack of ender pearls, a few diamond blocks, or a custom "Elytra Voucher" your shop sells. [More](../guides/elytra-claims.md#claim-cost)
+[More](../guides/elytra-claims.md#claim-cost)
 
 ## How often should loot come back?
 
-`loot.refresh-hours`, 12 by default.
+Set `loot.refresh-hours` (default `12`):
 
-* **12 to 24 hours** - cities are something players do regularly
-* **168, which is a week** - cities are an occasional event
-* **0** - never. Each player gets exactly one copy of each city, forever
+* **12 to 24** - cities are something players do regularly
+* **168** (a week) - cities are an occasional trip
+* **0** - never, so each player loots each chest once
 
-Each city runs its own timer, and the timer only starts when someone first loots that city. So cities don't all refresh at the same moment, and cities nobody visits cost nothing at all. [More](../guides/per-player-loot.md)
+Each city's timer starts when someone first loots it, so cities don't all refresh at once. [More](../guides/per-player-loot.md)
 
 ## Should blocks come back too?
 
-`snapshot.auto-reset-on-refresh`, `false` by default.
+Set `snapshot.auto-reset-on-refresh` (default `false`).
 
-With it off, a refresh brings back the *loot* only. Broken blocks stay broken, though with protection on there shouldn't be many.
-
-With it on, every refresh also rebuilds the city from its saved copy, so griefing and player changes are undone.
+* **Off** - a refresh brings back loot only
+* **On** - every refresh also puts the city's blocks back from its saved copy
 
 {% hint style="warning" %}
-**Why it's off by default.** Putting blocks back rewrites the whole city at once. Players standing inside can be suffocated or shoved out of the way, and anything they've built inside the city is erased. Turn it on if you want cities kept pristine. Leave it off if your players treat cities as bases.
+Putting blocks back can suffocate players inside and erases anything built there. Turn it on only if cities are for farming, not for bases.
 {% endhint %}
 
-## Do you have a second End world?
+## Only protect the ship?
 
-`discovery.excluded-worlds` takes a list of world names, and capital letters don't matter:
+Set `protection.scope` to `ship-only` to leave towers and bridges open while keeping the ship and the city's loot chests protected. Pair it with `snapshot.auto-reset-on-refresh: true` so the towers are rebuilt on each refresh. [More](../guides/protection.md)
+
+## Leave a second End world alone
+
+List its name under `discovery.excluded-worlds` (capital letters don't matter):
 
 ```yaml
 discovery:
@@ -90,20 +92,20 @@ discovery:
     - resource_end
 ```
 
-Cities in those worlds are never registered, so they behave exactly like vanilla. Useful when you want one End managed and one left alone.
+Cities there are never registered and behave like vanilla.
 
 {% hint style="info" %}
-Cities registered **before** you excluded a world keep working. Remove them yourself with `/betterend delete <id>`.
+Cities registered before you excluded a world keep working. Remove them with `/betterend delete <id>`.
 {% endhint %}
 
 ***
 
-## Settings you probably shouldn't touch
+## Settings to leave alone
 
-* **`protection.piece-padding`** (`3`) - how far protection reaches past each tower to cover its trim and decoration. Raising it can start protecting empty space between towers. Lowering it leaves trim breakable.
-* **`snapshot.max-cells`** (`3000000`) - a safety limit on memory, already far larger than any real city.
-* **`discovery.startup-sweep`** (`true`) - catches cities that were already loaded when the server started. Only turn it off if startup is noticeably slow.
-* **`debug.verbose-logging`** - very noisy. For chasing down a problem, not for everyday running.
+* **`protection.piece-padding`** (`3`) - how far protection reaches past each tower's walls. Higher protects empty space nearby; lower leaves trim breakable
+* **`snapshot.max-cells`** (`3000000`) - a memory limit far above any real city
+* **`discovery.startup-sweep`** (`true`) - checks areas already loaded at startup. Turn off only if startup is noticeably slow
+* **`debug.verbose-logging`** (`false`) - noisy, for bug reports only
 
 ***
 

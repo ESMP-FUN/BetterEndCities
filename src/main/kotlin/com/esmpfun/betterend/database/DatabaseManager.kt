@@ -9,13 +9,7 @@ import org.bukkit.configuration.file.FileConfiguration
 import java.io.File
 import java.sql.Connection
 
-/**
- * HikariCP-pooled database access. SQLite (default) or MySQL.
- *
- * Same pool tuning as BetterAncientCities (WAL + concurrent readers for
- * SQLite), same dual-dialect approach. Schema is BetterEnd's own:
- * `cities` + `city_pieces` + per-player loot + elytra claims.
- */
+/** Pooled SQLite (default) or MySQL access, and the schema. */
 class DatabaseManager(private val plugin: BetterEnd) {
 
     private lateinit var dataSource: HikariDataSource
@@ -94,10 +88,7 @@ class DatabaseManager(private val plugin: BetterEnd) {
         val bigText = if (_databaseType == DatabaseType.SQLITE) "TEXT" else "MEDIUMTEXT"
         connection.use { conn ->
             conn.createStatement().use { stmt ->
-                // Registered End Cities. (origin_x/y/z) = the structure
-                // bounding-box min corner - the stable dedup identity across
-                // every chunk of the city; the min/max_* region bounds are the
-                // union of the pieces.
+                // origin_* identifies a city across chunk loads; min/max_* enclose its pieces.
                 stmt.execute(
                     """
                     CREATE TABLE IF NOT EXISTS cities (
@@ -117,8 +108,6 @@ class DatabaseManager(private val plugin: BetterEnd) {
                     )
                     """.trimIndent()
                 )
-                // Per-piece bounding boxes - exact provenance bounds (towers,
-                // bridges, and the ship when one generated).
                 stmt.execute(
                     """
                     CREATE TABLE IF NOT EXISTS city_pieces (
@@ -132,8 +121,7 @@ class DatabaseManager(private val plugin: BetterEnd) {
                 )
                 createIndex(stmt, "idx_city_pieces_city", "city_pieces(city_id)")
 
-                // Per-player private container copies (Lootr-style). One row per
-                // (city, container position, player). Cleared per city on reset.
+                // Each player's private copy of a container. Cleared per city on refresh.
                 stmt.execute(
                     """
                     CREATE TABLE IF NOT EXISTS player_container_loot (
@@ -147,9 +135,7 @@ class DatabaseManager(private val plugin: BetterEnd) {
                     )
                     """.trimIndent()
                 )
-                // Shared per-container template: the canonical contents every
-                // first-open copy is cloned from (materialized by rolling the
-                // vanilla loot table). PERSISTS across resets so op edits stick.
+                // What every first copy starts from. Kept across resets so staff edits stick.
                 stmt.execute(
                     """
                     CREATE TABLE IF NOT EXISTS container_template (
@@ -163,9 +149,7 @@ class DatabaseManager(private val plugin: BetterEnd) {
                     )
                     """.trimIndent()
                 )
-                // Elytra claims - one row per (city, player). claimed_at lets
-                // the per-refresh claim mode compare against the city's loot
-                // cycle start instead of needing explicit deletes.
+                // per-refresh mode compares claimed_at to the loot cycle start, so nothing is deleted.
                 stmt.execute(
                     """
                     CREATE TABLE IF NOT EXISTS elytra_claims (
@@ -196,7 +180,7 @@ class DatabaseManager(private val plugin: BetterEnd) {
         }
     }
 
-    /** MySQL has no `CREATE INDEX IF NOT EXISTS`; there the "already exists" error (1061) is the no-op. */
+    // MySQL has no CREATE INDEX IF NOT EXISTS; error 1061 means it already exists.
     private fun createIndex(stmt: java.sql.Statement, name: String, on: String) {
         if (_databaseType == DatabaseType.SQLITE) {
             stmt.execute("CREATE INDEX IF NOT EXISTS $name ON $on")
@@ -209,11 +193,7 @@ class DatabaseManager(private val plugin: BetterEnd) {
         }
     }
 
-    /**
-     * Before this fix every stored box was one block short on its max side
-     * (the structure API's max corner is inclusive, but was treated as
-     * exclusive). Grows every stored box by that block, exactly once.
-     */
+    // Boxes stored by earlier versions are one block short on their max side. Grows them once.
     private fun fixInclusiveBounds(conn: Connection) {
         conn.createStatement().use { stmt ->
             stmt.execute("CREATE TABLE IF NOT EXISTS be_meta (k VARCHAR(64) NOT NULL PRIMARY KEY, v VARCHAR(255))")

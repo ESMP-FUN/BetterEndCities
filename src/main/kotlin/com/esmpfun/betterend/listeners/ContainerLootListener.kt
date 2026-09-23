@@ -37,42 +37,20 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Per-player End City container loot (Lootr-style), the BetterAncientCities
- * approach ported to the End.
- *
- * Every player who opens a city chest sees their own private copy of its
- * contents, so the second player into a city doesn't find gutted containers.
- * Cooldown semantics are content *freshness*, not lockout: after a reset,
- * [ContainerLootManager.clearCity] drops everyone's copies and the next open
- * re-clones the template.
- *
- * Eligibility: a container is city loot only if it's inside a registered city
- * AND inside an actual generated structure piece ([EndCity.inStructurePiece]).
- * The piece test rejects player-built chests that happen to sit within the
- * city's envelope but outside the structure.
- *
- * How it works:
- *  - Each container has a shared **template** - the canonical contents every
- *    first-open copy is cloned from, materialized once by rolling the block's
- *    vanilla loot table (a naturally-generated city chest holds an UNROLLED
- *    loot table / empty inventory until first opened). Persists across resets.
- *  - Ops with `betterend.admin` **sneak-open** the template to edit it; a
- *    normal click gets a per-player copy.
- *  - Double chests are keyed by the left half (one 54-slot template/copy).
- *  - Player-placed containers are PDC-tagged at place time and keep vanilla
- *    behaviour. So does any untagged container that holds items but no loot
- *    table (see [isCityLoot]).
- *  - Hopper movement in/out of an eligible container is cancelled.
+ * Opening a city container shows the player a private copy instead of the
+ * real block. Each container's template is rolled once from its loot table
+ * and every copy starts from it; staff sneak-open a container to edit the
+ * template. Double chests are keyed by their left half. Player-placed
+ * containers are tagged and stay vanilla, as does anything [isCityLoot] rejects.
  */
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class ContainerLootListener(private val plugin: BetterEnd) : Listener {
 
     private val playerPlacedKey = NamespacedKey("betterend", "player_placed_container")
 
-    /** Anti double-fire: last virtual-open millis per player. */
+    // Last open per player, so a double-fired click doesn't open twice.
     private val openDebounce = ConcurrentHashMap<UUID, Long>()
 
-    /** Marks a player's private copy inventory (saved to player_container_loot). */
     class CopyHolder(
         val cityId: Int,
         val pos: ContainerLootManager.ContainerPos
@@ -81,7 +59,6 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
         override fun getInventory(): Inventory = backing
     }
 
-    /** Marks an op editing the shared template (saved to container_template). */
     class TemplateHolder(
         val cityId: Int,
         val pos: ContainerLootManager.ContainerPos
@@ -101,7 +78,6 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
 
     private fun enabled() = plugin.config.getBoolean("loot.enabled", true)
 
-    /** Refresh window in ms (`loot.refresh-hours`); <= 0 disables refresh. */
     private fun refreshMs(): Long = (plugin.config.getInt("loot.refresh-hours", 12) * 3_600_000L)
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -113,10 +89,8 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
         if (block.type !in ELIGIBLE) return
 
         val city = plugin.cityManager.getCachedCityAt(block.location) ?: return
-        // Provenance: only actual structure-piece containers are city loot.
         if (!city.inStructurePiece(block.location)) return
 
-        // Player-placed containers keep vanilla behaviour.
         val state = block.state
         if (state is TileState &&
             state.persistentDataContainer.has(playerPlacedKey, PersistentDataType.BYTE)
@@ -128,7 +102,6 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
         if (!isCityLoot(state, holder, inv)) return
         val player = event.player
 
-        // Sneak + admin = edit the shared template; otherwise a per-player copy.
         val isAdminEdit = player.isSneaking && player.hasPermission("betterend.admin")
 
         event.isCancelled = true
@@ -139,8 +112,7 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
         openDebounce[player.uniqueId] = now
         if (openDebounce.size > 100) openDebounce.entries.removeIf { now - it.value > 10_000 }
 
-        // Resolve the normalized key block (left half of a double chest) and the
-        // inventory size SYNCHRONOUSLY, while we're on the block's region thread.
+        // Read while still on the block's region thread.
         val keyBlock = if (holder is DoubleChest) (holder.leftSide as? Chest)?.block ?: block else block
         val size = if (holder is DoubleChest) 54 else inv.size
         val pos = ContainerLootManager.ContainerPos(keyBlock.x, keyBlock.y, keyBlock.z)
@@ -158,14 +130,10 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
                 openVirtual(player, TemplateHolder(city.id, pos), size, TEMPLATE_TITLE, template)
                 player.sendMessage(Component.text("§7Editing the shared loot template. Changes apply to every player's first open."))
             } else {
-                // First looter past the refresh window starts a new per-city cycle:
-                // wipe everyone's copies so the city's loot is fresh again. Editing
-                // the template (above) never triggers a cycle. Lazy - no scheduler.
+                // The first player past the refresh window clears everyone's copies.
                 if (plugin.cityManager.beginCycleIfDue(city.id, refreshMs())) {
                     plugin.containerLootManager.clearCity(city.id)
                     plugin.cityManager.persistCycleStart(city.id)
-                    // Optionally restore the structure too (revert griefing) on
-                    // the cycle roll. Opt-in - a restore rewrites blocks.
                     if (plugin.config.getBoolean("snapshot.auto-reset-on-refresh", false) &&
                         plugin.snapshotManager.hasSnapshot(city.id)
                     ) {
@@ -193,11 +161,9 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
     private fun snapshot(inv: Inventory): Array<ItemStack?> = inv.contents.map { it?.clone() }.toTypedArray()
 
     /**
-     * Saves and closes every open loot inventory, then writes out anything
-     * still waiting. Called from onDisable while listeners are still
-     * registered: without it, loot taken from a copy that was open at
-     * shutdown or reload stays in the player's inventory while the copy
-     * itself reverts to full on the next start.
+     * Saves and closes open loot inventories, then writes anything waiting.
+     * Without it, loot taken from a copy open at shutdown stays with the
+     * player while the copy comes back full.
      */
     fun saveOpenOnShutdown() {
         for (player in plugin.server.onlinePlayers) {
@@ -217,11 +183,7 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
         plugin.containerLootManager.flushPending()
     }
 
-    /**
-     * Tag containers players place so they keep vanilla behaviour. Every End
-     * placement is tagged, not just those inside a known city, so a chest
-     * placed before its city finishes registering is covered too.
-     */
+    // Every End placement is tagged, which also covers a city still being registered.
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     fun onContainerPlace(event: BlockPlaceEvent) {
         if (event.block.type !in ELIGIBLE) return
@@ -231,7 +193,6 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
         state.update()
     }
 
-    /** Block hopper automation against the pristine template. */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     fun onHopperMove(event: InventoryMoveItemEvent) {
         if (!enabled()) return
@@ -239,8 +200,6 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
             event.isCancelled = true
         }
     }
-
-    // ==== Helpers ====
 
     private suspend fun materializeOnRegion(keyLoc: Location, size: Int): Array<ItemStack?> =
         kotlinx.coroutines.suspendCancellableCoroutine { cont ->
@@ -293,20 +252,13 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
         for (i in 0 until 27) out[offset + i] = half.getOrNull(i)?.clone()
     }
 
-    /**
-     * The container's own unrolled loot table. A chest without one was looted
-     * before this plugin ran ([isCityLoot] only lets empty ones through), so it
-     * gets fresh End City loot instead of a permanently empty copy.
-     */
+    // A city chest without a table was looted before install; give it fresh loot rather than an empty copy.
     private fun tableFor(lootable: Lootable?, type: Material): LootTable? =
         lootable?.lootTable ?: if (type == Material.CHEST || type == Material.TRAPPED_CHEST) LootTables.END_CITY_TREASURE.lootTable else null
 
     /**
-     * Whether an untagged container in a structure piece is the city's own:
-     * its loot is still unrolled, or it stands empty (looted before this
-     * plugin ran). One holding items with no loot table was stocked by a
-     * player, so it stays an ordinary chest. Treating it as city loot would
-     * copy that player's items to everyone.
+     * Unrolled loot, or empty after a pre-install looting. Items with no loot
+     * table mean a player stocked it; copying that to everyone would dupe them.
      */
     private fun isCityLoot(state: BlockState, holder: InventoryHolder?, inv: Inventory): Boolean {
         val tables = if (holder is DoubleChest) {
@@ -345,13 +297,7 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
         })
     }
 
-    /**
-     * Scans every chunk in [city]'s region for eligible structure-piece
-     * containers and materializes a shared template for any without one. Lets
-     * admins prep all city loot from a command without opening each container
-     * in-world. Returns the number of new templates created. Folia-safe
-     * (region-hops per chunk).
-     */
+    /** Rolls a template for every city container that lacks one. Returns how many were made. */
     suspend fun materializeCity(city: EndCity): Int {
         val world = city.getWorld() ?: return 0
         var created = 0
@@ -375,7 +321,7 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
                                 val holder = te.inventory.holder
                                 if (!isCityLoot(te, holder, te.inventory)) continue
                                 val keyBlock = if (holder is DoubleChest) (holder.leftSide as? Chest)?.block ?: b else b
-                                if (holder is DoubleChest && keyBlock != b) continue // right half - handled by left
+                                if (holder is DoubleChest && keyBlock != b) continue // the left half covers it
                                 val size = if (holder is DoubleChest) 54 else te.inventory.size
                                 results.add(
                                     Triple(
@@ -403,8 +349,7 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
     }
 
     private fun isProtectedTemplate(inv: Inventory): Boolean {
-        // Hoppers fire this constantly server-wide: reject by position before
-        // building any block state.
+        // Fires constantly for every hopper: reject by position before building a block state.
         val loc = inv.location ?: return false
         if (plugin.cityManager.getCachedCityAt(loc) == null) return false
         val holder = inv.getHolder(false)

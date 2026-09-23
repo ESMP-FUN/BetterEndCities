@@ -17,19 +17,10 @@ import java.io.Serializable
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * Captures and restores an End City's structure to/from a gzip-compressed
- * file on disk (one per city id, in `snapshots/`).
- *
- * **Block-data only** - no tile-entity NBT. BetterEnd's loot is virtual
- * (served from DB templates, never the physical chest), so a snapshot only
- * needs the block palette to restore the structure. This reverts griefing
- * back to the captured state. The ship's elytra item frame is an entity, so
- * a restore never touches it - the frame simply persists.
- *
- * **Scope** - only the cells inside each `city_pieces` bounding box are
- * captured (air included, so a restore truly resets changes), NOT the full
- * city AABB - the void between towers stays untouched. Reads/writes hop
- * per-chunk to the owning region thread (Folia-safe).
+ * Saves and restores a city's blocks, one gzip file per city in `snapshots/`.
+ * Block data only: loot lives in the database and the elytra frame is an
+ * entity, so neither needs saving. Only cells inside the padded pieces are
+ * kept, air included, so the space between towers is never touched.
  */
 class SnapshotManager(private val plugin: BetterEnd) {
 
@@ -38,7 +29,7 @@ class SnapshotManager(private val plugin: BetterEnd) {
         val originX: Int,
         val originY: Int,
         val originZ: Int,
-        val blocks: Map<Triple<Int, Int, Int>, String>, // relative pos -> blockData string
+        val blocks: Map<Triple<Int, Int, Int>, String>, // position relative to origin -> block data
     ) : Serializable {
         companion object { private const val serialVersionUID = 1L }
     }
@@ -47,12 +38,9 @@ class SnapshotManager(private val plugin: BetterEnd) {
 
     private fun maxCells() = plugin.config.getInt("snapshot.max-cells", 3_000_000)
 
-    /** Capture must cover at least what protection protects - the PADDED piece
-     *  region - so a reset can restore edge decoration that sits just outside
-     *  the exact piece bounds. */
+    // Covers the same padded area protection does, so trim outside a piece is restored too.
     private fun capturePad() = plugin.config.getInt("protection.piece-padding", 3)
 
-    /** Block positions of every (padded) piece cell, deduped and grouped by chunk key. */
     private fun cellsByChunk(city: EndCity, pad: Int): Map<Long, MutableList<Triple<Int, Int, Int>>> {
         val seen = HashSet<Long>()
         val byChunk = HashMap<Long, MutableList<Triple<Int, Int, Int>>>()
@@ -67,11 +55,7 @@ class SnapshotManager(private val plugin: BetterEnd) {
         return byChunk
     }
 
-    /**
-     * Loads (or generates) a chunk off the server thread. Discovery captures a
-     * city the moment its first chunk appears, when most of its other chunks
-     * have never been generated; doing that synchronously stalls the server.
-     */
+    // Discovery captures a city before most of its chunks exist; generating them synchronously stalls the server.
     private suspend fun loadChunk(world: World, cx: Int, cz: Int) {
         world.getChunkAtAsync(cx, cz).await()
     }
@@ -79,11 +63,7 @@ class SnapshotManager(private val plugin: BetterEnd) {
     private fun blockKey(x: Int, y: Int, z: Int): Long =
         (x.toLong() and 0x3FFFFFF shl 38) or (z.toLong() and 0x3FFFFFF shl 12) or (y.toLong() and 0xFFF)
 
-    /**
-     * Captures [city]'s structure to disk. Returns the cell count, or -1 if the
-     * city has no pieces / exceeds `snapshot.max-cells`. Persists the file path
-     * onto the city row.
-     */
+    /** Returns the cells saved, or -1 when there are none or more than `snapshot.max-cells`. */
     suspend fun capture(city: EndCity): Int {
         val world = city.getWorld() ?: run {
             plugin.logger.warning("[Snapshot] World '${city.world}' not loaded; cannot capture city #${city.id}")
@@ -101,7 +81,6 @@ class SnapshotManager(private val plugin: BetterEnd) {
         val blocks = HashMap<Triple<Int, Int, Int>, String>(total)
         var failed = 0
 
-        // Read each chunk's cells on its owning region thread.
         for ((_, cells) in byChunk) {
             val rep = cells.first()
             val loc = Location(world, rep.first.toDouble(), rep.second.toDouble(), rep.third.toDouble())
@@ -112,7 +91,6 @@ class SnapshotManager(private val plugin: BetterEnd) {
                         // Normally still loaded from loadChunk; this only covers an unload in between.
                         if (!world.isChunkLoaded(rep.first shr 4, rep.third shr 4)) world.getChunkAt(rep.first shr 4, rep.third shr 4)
                         for (c in cells) {
-                            // Per-cell isolation: one bad block must NOT drop the rest of the chunk.
                             try {
                                 val data = world.getBlockAt(c.first, c.second, c.third).blockData.asString
                                 blocks[Triple(c.first - origin.first, c.second - origin.second, c.third - origin.third)] = data
@@ -127,11 +105,7 @@ class SnapshotManager(private val plugin: BetterEnd) {
             }
         }
 
-        // Ship fingerprint, for free: `end_city/ship` is the only end city
-        // template containing a dragon head (per the structure data in
-        // data/minecraft/structures/end_city), and we just read every piece
-        // block anyway. Wall + floor variants both serialize with a
-        // "dragon_head"/"dragon_wall_head" block id.
+        // Only the ship piece contains a dragon head, so finding one locates the ship.
         blocks.entries.firstOrNull { isDragonHead(it.value) }?.let { (rel, _) ->
             if (!city.hasShip) plugin.logger.info("[Snapshot] City #${city.id} contains an End Ship (dragon head found).")
             plugin.cityManager.setShipAnchor(
@@ -152,12 +126,7 @@ class SnapshotManager(private val plugin: BetterEnd) {
 
     fun hasSnapshot(cityId: Int): Boolean = fileFor(cityId).exists()
 
-    /**
-     * Restores [city] from its snapshot, setting every captured cell back
-     * (physics suppressed). Returns the cell count restored, or -1 if no
-     * snapshot / load failure. Block writes hop per-chunk to the region thread
-     * and the call suspends until all batches complete.
-     */
+    /** Returns the cells restored, or -1 without a readable snapshot. Suspends until every chunk is done. */
     suspend fun restore(city: EndCity): Int {
         val file = fileFor(city.id)
         if (!file.exists()) { plugin.logger.warning("[Snapshot] No snapshot for city #${city.id}"); return -1 }
@@ -177,7 +146,6 @@ class SnapshotManager(private val plugin: BetterEnd) {
             return -1
         }
 
-        // Group absolute positions + their block data by chunk.
         val byChunk = HashMap<Long, MutableList<Pair<Location, String>>>()
         // A taken dragon head stays gone; restoring it would re-arm anything keyed on it.
         val skipHead = plugin.cityManager.byId(city.id)?.headTaken == true
@@ -200,8 +168,6 @@ class SnapshotManager(private val plugin: BetterEnd) {
                 try {
                     if (!world.isChunkLoaded(first.blockX shr 4, first.blockZ shr 4)) world.getChunkAt(first.blockX shr 4, first.blockZ shr 4)
                     for ((bloc, str) in list) {
-                        // Per-block isolation: a single parse/set failure must NOT drop
-                        // the rest of the chunk.
                         try {
                             val bd = Bukkit.createBlockData(str)
                             bloc.block.setBlockData(bd, false) // no physics, so no cascade of updates

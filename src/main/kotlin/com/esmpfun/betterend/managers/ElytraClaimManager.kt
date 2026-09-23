@@ -11,16 +11,8 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Elytra claim bookkeeping. Fully preloaded into memory (claim volume is
- * players x ships - tiny), because the punch handler must answer
- * "has this player claimed?" synchronously to cancel the event, with the DB
- * only written behind the cache.
- *
- * Claim modes (config `elytra.claim-mode`):
- *  - `per-ship`    - one claim per (city, player), ever.
- *  - `per-refresh` - a claim goes stale when the city's loot cycle rolls over
- *                    (claimed_at < the city's current cycle start).
- *  - `global`      - one claim per player across all cities.
+ * Elytra claims and prices. Every claim is kept in memory because the punch
+ * handler has to answer synchronously; the database is written behind it.
  */
 class ElytraClaimManager(private val plugin: BetterEnd) {
 
@@ -45,7 +37,7 @@ class ElytraClaimManager(private val plugin: BetterEnd) {
 
     fun mode(): ClaimMode = ClaimMode.fromConfig(plugin.config.getString("elytra.claim-mode"))
 
-    /** Loads every claim into the cache. Call once at startup. */
+    /** Call once at startup. */
     suspend fun preload() = withContext(Dispatchers.IO) {
         claims.clear()
         plugin.databaseManager.connection.use { conn ->
@@ -63,22 +55,17 @@ class ElytraClaimManager(private val plugin: BetterEnd) {
         if (total > 0) plugin.logger.info("Loaded $total elytra claim${if (total == 1) "" else "s"} into cache")
     }
 
-    /**
-     * Whether [player] is currently blocked from claiming at [cityId] under the
-     * configured mode. Synchronous - reads the in-memory cache only.
-     */
+    /** Whether the configured claim mode stops [player] claiming at [cityId]. */
     fun hasClaimed(cityId: Int, player: UUID): Boolean = when (mode()) {
         ClaimMode.PER_SHIP -> claims[cityId]?.containsKey(player) == true
         ClaimMode.PER_REFRESH -> {
             val at = claims[cityId]?.get(player)
-            // No cycle yet (0) = nothing has expired claims, so any claim holds.
             at != null && at >= plugin.cityManager.cycleStart(cityId)
         }
         ClaimMode.GLOBAL -> claims.values.any { it.containsKey(player) }
     }
 
-    /** Records a claim (cache now, DB behind it - upsert so re-claims after a
-     *  refresh just move claimed_at forward). */
+    /** Records a claim now and writes it behind; a re-claim moves claimed_at forward. */
     fun record(cityId: Int, player: UUID) {
         val now = System.currentTimeMillis()
         claims.getOrPut(cityId) { ConcurrentHashMap() }[player] = now
@@ -109,7 +96,7 @@ class ElytraClaimManager(private val plugin: BetterEnd) {
         }
     }
 
-    /** Drops every claim for a city (admin reset / delete). Returns rows removed. */
+    /** Returns rows removed. */
     suspend fun clearCity(cityId: Int): Int = withContext(Dispatchers.IO) {
         claims.remove(cityId)
         try {
@@ -125,7 +112,7 @@ class ElytraClaimManager(private val plugin: BetterEnd) {
         }
     }
 
-    /** Forgets a deleted city's claims in memory; its rows already went with the city row. */
+    /** For a deleted city, whose rows the database already removed. */
     fun dropCity(cityId: Int) {
         claims.remove(cityId)
     }
@@ -135,7 +122,7 @@ class ElytraClaimManager(private val plugin: BetterEnd) {
     /** What [player]'s next claim costs: [items] of the single [item] (null = no item) plus [levels]. */
     data class Price(val levels: Int, val item: ItemStack?, val items: Int, val doublings: Int)
 
-    /** How far back claims count toward doubling: one loot refresh, or forever when refresh is off. */
+    /** One loot refresh; 0 when refresh is off, which means forever. */
     fun doublingWindowMs(): Long = plugin.config.getInt("loot.refresh-hours", 12) * 3_600_000L
 
     /** Claims [player] made, across every ship, inside the doubling window. */
@@ -156,13 +143,9 @@ class ElytraClaimManager(private val plugin: BetterEnd) {
         return Price(levels, base?.clone()?.apply { amount = 1 }, (base?.amount ?: 0) * factor, doublings)
     }
 
-    // ── cost item (config-backed) ────────────────────────────────────────────
+    // ── cost item ────────────────────────────────────────────────────────────
 
-    /**
-     * The configured claim cost, or null when claiming is free. The stack's
-     * amount carries `elytra.cost.amount` (clamped to the item's max stack
-     * size - the amount slider and this loader enforce the same rule).
-     */
+    /** The cost item with `elytra.cost.amount` as its amount, or null when there is none. */
     fun costStack(): ItemStack? {
         val amount = plugin.config.getInt("elytra.cost.amount", 0)
         if (amount <= 0) return null
@@ -175,19 +158,17 @@ class ElytraClaimManager(private val plugin: BetterEnd) {
         return stack
     }
 
-    /** Persists a new cost item (a SINGLE item; amount lives in `elytra.cost.amount`). */
+    /** Saves one of [item]; the amount stays in `elytra.cost.amount`. */
     fun saveCostItem(item: ItemStack) {
         val single = item.clone().apply { amount = 1 }
         plugin.config.set("elytra.cost.item", Base64.getEncoder().encodeToString(single.serializeAsBytes()))
-        // Re-clamp the amount to the new item's stack size (a 16-stack item
-        // can't cost 64) and keep at least 1 so the pick takes effect.
+        // At least 1 so the pick takes effect, at most one stack of the new item.
         val amount = plugin.config.getInt("elytra.cost.amount", 0).coerceIn(1, single.maxStackSize)
         plugin.config.set("elytra.cost.amount", amount)
         plugin.saveConfig()
     }
 
-    /** The single-item cost stack for display/slider math (never null: falls
-     *  back to a shulker shell so the picker always has something to show). */
+    /** One of the cost item, or a shulker shell so the picker always shows something. */
     fun costItemOrDefault(): ItemStack {
         costStack()?.let { return it.clone().apply { amount = 1 } }
         val encoded = plugin.config.getString("elytra.cost.item", "") ?: ""

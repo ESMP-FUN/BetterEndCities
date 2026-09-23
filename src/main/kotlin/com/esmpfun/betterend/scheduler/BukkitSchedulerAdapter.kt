@@ -6,10 +6,7 @@ import org.bukkit.entity.Entity
 import org.bukkit.plugin.Plugin
 import org.bukkit.scheduler.BukkitTask
 
-/**
- * Standard Bukkit/Paper scheduler implementation.
- * All tasks run on the single main thread (no regionization).
- */
+/** Paper: every "region" is the main thread. */
 class BukkitSchedulerAdapter(private val plugin: Plugin) : SchedulerAdapter {
 
     override val isFolia: Boolean = false
@@ -49,7 +46,6 @@ class BukkitSchedulerAdapter(private val plugin: Plugin) : SchedulerAdapter {
     }
 
     override fun runAtLocation(location: Location, task: Runnable) {
-        // On Paper, location doesn't matter - just run on main thread
         runTask(task)
     }
 
@@ -58,8 +54,6 @@ class BukkitSchedulerAdapter(private val plugin: Plugin) : SchedulerAdapter {
     }
 
     override fun runAtEntity(entity: Entity, task: Runnable, retired: Runnable?) {
-        // On Paper, just run on main thread
-        // Check if entity is still valid before running
         runTask {
             if (entity.isValid) {
                 task.run()
@@ -83,9 +77,6 @@ class BukkitSchedulerAdapter(private val plugin: Plugin) : SchedulerAdapter {
         scheduler.cancelTasks(plugin)
     }
 
-    /**
-     * Wrapper for BukkitTask to implement ScheduledTask interface.
-     */
     private class BukkitScheduledTask(private val task: BukkitTask) : ScheduledTask {
         override fun cancel() {
             task.cancel()
