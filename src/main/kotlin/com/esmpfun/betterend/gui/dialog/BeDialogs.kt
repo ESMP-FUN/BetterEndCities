@@ -61,6 +61,13 @@ object BeDialogs {
             .build()
     }
 
+    fun text(key: String, label: String, initial: String, maxLength: Int = 64): DialogInput =
+        DialogInput.text(key.dialogKey(), Component.text(label))
+            .initial(initial)
+            .maxLength(maxLength)
+            .width(300)
+            .build()
+
     /** A pick-one input; the chosen [Choice.id] comes back via `getText(key)`. */
     data class Choice(val id: String, val label: String)
 
@@ -90,6 +97,7 @@ object BeDialogs {
         body: List<String>,
         inputs: List<DialogInput>,
         extraButtons: List<ActionButton> = emptyList(),
+        needsRestart: Boolean = false,
         onSave: (DialogResponseView) -> Unit,
     ) {
         fun mapped(view: DialogResponseView): DialogResponseView = object : DialogResponseView {
@@ -108,7 +116,10 @@ object BeDialogs {
                 // Push config-dependent visuals (frame hints) to loaded ships.
                 ElytraFrameListener.refreshLoaded(plugin)
             })
-            player.sendMessage(Component.text("Settings saved & applied.", NamedTextColor.GREEN))
+            player.sendMessage(
+                if (needsRestart) Component.text("Settings saved. They take effect the next time the server starts.", NamedTextColor.GREEN)
+                else Component.text("Settings saved & applied.", NamedTextColor.GREEN)
+            )
         }
 
         val back = button("Back", NamedTextColor.YELLOW, "Return to the Better End Cities menu (without saving)") { _ ->
@@ -202,12 +213,17 @@ object BeDialogs {
         val mode = plugin.elytraClaimManager.mode().label
         val cost = plugin.elytraClaimManager.costStack()
 
-        val elytra = button("Elytra Frames", NamedTextColor.AQUA, "Claim rules, cost and the frame hint") { _ ->
-            plugin.scheduler.runAtEntity(player, Runnable { if (player.isOnline) openElytra(plugin, player) })
-        }
-        val citiesBtn = button("End Cities", NamedTextColor.LIGHT_PURPLE, "Discovery, per-player loot, protection and resets") { _ ->
-            plugin.scheduler.runAtEntity(player, Runnable { if (player.isOnline) openCities(plugin, player) })
-        }
+        fun page(label: String, color: NamedTextColor, tooltip: String, open: (BetterEnd, Player) -> Unit) =
+            button(label, color, tooltip) { _ ->
+                plugin.scheduler.runAtEntity(player, Runnable { if (player.isOnline) open(plugin, player) })
+            }
+
+        val elytra = page("Elytra Frames", NamedTextColor.AQUA, "Who can claim, what it costs, and the frame's hint", ::openElytra)
+        val loot = page("Per-player Loot", NamedTextColor.LIGHT_PURPLE, "Everyone's own chest copies and how often they refresh", ::openLoot)
+        val protection = page("Protection", NamedTextColor.RED, "What players can and can't break or build in a city", ::openProtection)
+        val discovery = page("Finding Cities & Resets", NamedTextColor.DARK_PURPLE, "Finding cities, saved copies and putting blocks back", ::openDiscovery)
+        val storage = page("Storage", NamedTextColor.GRAY, "Where the plugin keeps its data (SQLite or MySQL)", ::openStorage)
+        val updates = page("Updates & Stats", NamedTextColor.GRAY, "Update checks, anonymous stats and extra logging", ::openUpdates)
         val costItem = button("Choose Cost Item", NamedTextColor.GOLD, "Pick which item an elytra claim costs, straight from your inventory") { _ ->
             player.closeDialog()
             plugin.scheduler.runAtEntity(player, Runnable {
@@ -242,7 +258,7 @@ object BeDialogs {
 
         val dialog = Dialog.create { factory ->
             factory.empty().base(base)
-                .type(DialogType.multiAction(listOf(elytra, citiesBtn, costItem, setup), close, 2))
+                .type(DialogType.multiAction(listOf(elytra, costItem, loot, protection, discovery, storage, updates, setup), close, 2))
         }
         player.showDialog(dialog)
     }
@@ -326,43 +342,221 @@ object BeDialogs {
 
     fun scopeKey(raw: String?): String = SCOPES.firstOrNull { it.id.equals(raw, ignoreCase = true) }?.id ?: "whole-city"
 
-    /** End City discovery, per-player loot, protection and snapshot resets. */
-    fun openCities(plugin: BetterEnd, player: Player) {
+    /** Per-player chest loot and its refresh window. */
+    fun openLoot(plugin: BetterEnd, player: Player) {
         val cfg = plugin.config
         showSettings(
             plugin = plugin,
             player = player,
-            title = "End Cities",
+            title = "Per-player Loot",
             body = listOf(
-                "End Cities register themselves as players find them.",
-                "Per-player loot: everyone gets their own copy of each chest,",
-                "refreshed per city every 'refresh window' hours (0 = never).",
-                "Protection keeps the towers grief-free; auto-restore also",
-                "rebuilds the structure from its snapshot on each refresh.",
-                "'Only the ship' leaves towers and bridges open to players.",
+                "Every player who opens a city chest gets their own private",
+                "copy of what's inside, so the first player through no longer",
+                "empties the city for everyone else. Chests players place",
+                "themselves stay normal and shared.",
+                "",
+                "Refresh window: how many hours before a city's loot comes",
+                "back. Each city counts down on its own, starting when someone",
+                "first loots it. 0 = never, so each player loots each chest once.",
             ),
             inputs = listOf(
-                toggle("discovery.enabled", "Register new End Cities automatically", cfg.getBoolean("discovery.enabled", true)),
-                toggle("loot.enabled", "Per-player container loot", cfg.getBoolean("loot.enabled", true)),
-                refreshSlider("Loot refresh window (hours, 0 = never)", cfg.getInt("loot.refresh-hours", 12)),
+                toggle("loot.enabled", "Per-player chest loot", cfg.getBoolean("loot.enabled", true)),
+                refreshSlider("Refresh window (hours, 0 = never)", cfg.getInt("loot.refresh-hours", 12)),
+            ),
+        ) { view ->
+            view.getBoolean("loot.enabled")?.let { cfg.set("loot.enabled", it) }
+            view.getFloat("loot.refresh-hours")?.let { cfg.set("loot.refresh-hours", it.toInt()) }
+        }
+    }
+
+    /** Grief protection. */
+    fun openProtection(plugin: BetterEnd, player: Player) {
+        val cfg = plugin.config
+        val padding = cfg.getInt("protection.piece-padding", 3)
+        showSettings(
+            plugin = plugin,
+            player = player,
+            title = "Protection",
+            body = listOf(
+                "Stops players griefing cities. Every block in a tower, a",
+                "bridge or the ship is protected, whatever the block is. The",
+                "empty space between towers stays free to build in.",
+                "",
+                "'Only the ship' leaves towers and bridges open, but still",
+                "guards the ship and the city's loot chests.",
+                "",
+                "Reach past each tower: how many blocks of protection extend",
+                "beyond a tower's walls, to cover its trim. 3 fits vanilla",
+                "cities. Higher starts protecting empty space nearby.",
+                "",
+                "Staff with the betterend.bypass.protection permission are",
+                "never stopped.",
+            ),
+            inputs = listOf(
                 toggle("protection.enabled", "Grief protection", cfg.getBoolean("protection.enabled", true)),
                 singleOption("protection.scope", "What is protected", SCOPES, scopeKey(cfg.getString("protection.scope"))),
-                toggle("protection.dragon-head-takeable", "Players may take the ship's dragon head", cfg.getBoolean("protection.dragon-head-takeable", false)),
-                toggle("protection.block-place", "Also deny placing blocks", cfg.getBoolean("protection.block-place", true)),
-                toggle("protection.block-explosions", "Protect from explosions", cfg.getBoolean("protection.block-explosions", true)),
-                toggle("protection.notify-denied", "Tell players when a break is denied", cfg.getBoolean("protection.notify-denied", true)),
-                toggle("snapshot.auto-capture", "Snapshot each city on discovery", cfg.getBoolean("snapshot.auto-capture", true)),
-                toggle("snapshot.auto-reset-on-refresh", "Auto-restore blocks on loot refresh", cfg.getBoolean("snapshot.auto-reset-on-refresh", false)),
+                toggle("protection.dragon-head-takeable", "Players may take the ship's dragon head (once, for good)", cfg.getBoolean("protection.dragon-head-takeable", false)),
+                slider("protection.piece-padding", "Reach past each tower (blocks)", 0f, maxOf(16, padding).toFloat(), 1f, padding.toFloat()),
+                toggle("protection.block-place", "Also stop players building inside", cfg.getBoolean("protection.block-place", true)),
+                toggle("protection.block-explosions", "Also protect from creepers, TNT and other explosions", cfg.getBoolean("protection.block-explosions", true)),
+                toggle("protection.notify-denied", "Tell players why their break or build was stopped", cfg.getBoolean("protection.notify-denied", true)),
             ),
         ) { view ->
             listOf(
-                "discovery.enabled", "loot.enabled", "protection.enabled",
-                "protection.block-place", "protection.block-explosions",
-                "protection.notify-denied", "snapshot.auto-capture",
-                "snapshot.auto-reset-on-refresh", "protection.dragon-head-takeable",
+                "protection.enabled", "protection.dragon-head-takeable", "protection.block-place",
+                "protection.block-explosions", "protection.notify-denied",
             ).forEach { key -> view.getBoolean(key)?.let { cfg.set(key, it) } }
             view.getText("protection.scope")?.let { cfg.set("protection.scope", it) }
-            view.getFloat("loot.refresh-hours")?.let { cfg.set("loot.refresh-hours", it.toInt()) }
+            view.getFloat("protection.piece-padding")?.let { cfg.set("protection.piece-padding", it.toInt()) }
+        }
+    }
+
+    /** City discovery and snapshots. */
+    fun openDiscovery(plugin: BetterEnd, player: Player) {
+        val cfg = plugin.config
+        val excluded = cfg.getStringList("discovery.excluded-worlds").joinToString(", ")
+        // Shown in millions: a whole-block count doesn't fit a slider.
+        val maxCells = cfg.getInt("snapshot.max-cells", 3_000_000)
+        val maxMillions = maxCells / 1_000_000f
+        val cellsSlider = slider(
+            "snapshot.max-cells", "Largest saved copy (millions of blocks)",
+            0.5f, maxOf(10f, maxMillions), 0.25f, maxMillions,
+        )
+        showSettings(
+            plugin = plugin,
+            player = player,
+            title = "Finding Cities & Resets",
+            body = listOf(
+                "Cities register themselves as players travel near them, and",
+                "start working straight away.",
+                "",
+                "Worlds to leave alone: world names, separated by commas, whose",
+                "cities should behave exactly like vanilla. Cities already",
+                "registered there keep working until you /betterend delete them.",
+                "",
+                "A saved copy of each city lets /betterend reset put its blocks",
+                "back. Putting blocks back on every loot refresh can suffocate",
+                "players inside and erases anything built there, so it's off",
+                "by default. The size limit is far above any real city.",
+            ),
+            inputs = listOf(
+                toggle("discovery.enabled", "Register new End Cities automatically", cfg.getBoolean("discovery.enabled", true)),
+                toggle("discovery.startup-sweep", "Also check areas already loaded at startup", cfg.getBoolean("discovery.startup-sweep", true)),
+                text("discovery.excluded-worlds", "Worlds to leave alone (comma separated)", excluded, 512),
+                toggle("snapshot.auto-capture", "Save a copy of each city when it's found", cfg.getBoolean("snapshot.auto-capture", true)),
+                toggle("snapshot.auto-reset-on-refresh", "Put blocks back on every loot refresh", cfg.getBoolean("snapshot.auto-reset-on-refresh", false)),
+                cellsSlider,
+            ),
+        ) { view ->
+            listOf(
+                "discovery.enabled", "discovery.startup-sweep",
+                "snapshot.auto-capture", "snapshot.auto-reset-on-refresh",
+            ).forEach { key -> view.getBoolean(key)?.let { cfg.set(key, it) } }
+            view.getText("discovery.excluded-worlds")?.let { raw ->
+                cfg.set("discovery.excluded-worlds", raw.split(',').map { it.trim() }.filter { it.isNotEmpty() })
+            }
+            // Only written when moved, so a hand-set value between slider steps survives an unrelated save.
+            view.getFloat("snapshot.max-cells")?.let { v ->
+                val snapped = (0.5f + Math.round((maxMillions.coerceIn(0.5f, maxOf(10f, maxMillions)) - 0.5f) / 0.25f) * 0.25f)
+                if (v != snapped) cfg.set("snapshot.max-cells", Math.round(v * 1_000_000.0).toInt())
+            }
+        }
+    }
+
+    /** Database backend. Read once at startup. */
+    fun openStorage(plugin: BetterEnd, player: Player) {
+        val cfg = plugin.config
+        val types = listOf(
+            Choice("sqlite", "SQLite: a file on this server, no setup"),
+            Choice("mysql", "MySQL: a database server you run"),
+        )
+        val current = if (cfg.getString("database.type", "sqlite").equals("mysql", ignoreCase = true)) "mysql" else "sqlite"
+        showSettings(
+            plugin = plugin,
+            player = player,
+            title = "Storage",
+            body = listOf(
+                "Where the plugin remembers your cities, who has claimed an",
+                "elytra, and everyone's loot. SQLite needs nothing and is right",
+                "for almost every server. Use MySQL only if several servers",
+                "need to share one End.",
+                "",
+                "The MySQL fields are ignored while SQLite is chosen. Leave the",
+                "password empty to keep the one already saved.",
+                "",
+                "Switching starts from an empty database: nothing is copied",
+                "across. Changes here take effect after a restart.",
+            ),
+            inputs = listOf(
+                singleOption("database.type", "Storage", types, current),
+                text("database.mysql.host", "MySQL address", cfg.getString("database.mysql.host", "localhost") ?: "localhost", 255),
+                text("database.mysql.port", "MySQL port (usually 3306)", cfg.getInt("database.mysql.port", 3306).toString(), 5),
+                text("database.mysql.database", "MySQL database name", cfg.getString("database.mysql.database", "betterend") ?: "betterend", 64),
+                text("database.mysql.username", "MySQL username", cfg.getString("database.mysql.username", "root") ?: "root", 64),
+                text("database.mysql.password", "MySQL password (empty = keep current)", "", 128),
+            ),
+            needsRestart = true,
+        ) { view ->
+            view.getText("database.type")?.let { cfg.set("database.type", it) }
+            for (key in listOf("database.mysql.host", "database.mysql.database", "database.mysql.username")) {
+                view.getText(key)?.trim()?.takeIf { it.isNotEmpty() }?.let { cfg.set(key, it) }
+            }
+            view.getText("database.mysql.port")?.trim()?.let { raw ->
+                val port = raw.toIntOrNull()
+                if (port != null && port in 1..65535) cfg.set("database.mysql.port", port)
+                else player.sendMessage(Component.text("'$raw' isn't a port number (1 to 65535), so the port was left unchanged.", NamedTextColor.YELLOW))
+            }
+            view.getText("database.mysql.password")?.takeIf { it.isNotEmpty() }?.let { cfg.set("database.mysql.password", it) }
+        }
+    }
+
+    /** Update checks (read once at startup), metrics and logging. */
+    fun openUpdates(plugin: BetterEnd, player: Player) {
+        val cfg = plugin.config
+        val modes = listOf(
+            Choice("off", "Off: never check"),
+            Choice("check-only", "Check quietly (see /betterend update)"),
+            Choice("notify", "Check, and tell staff and the console"),
+            Choice("download", "Tell staff, who can download it with a command"),
+            Choice("auto-stage", "Download it for the next restart by itself"),
+        )
+        val mode = cfg.getString("update.mode", "notify")?.lowercase().let { m -> modes.firstOrNull { it.id == m }?.id } ?: "notify"
+        val interval = cfg.getInt("update.check-interval-hours", 6)
+        val holdHours = cfg.getInt("update.hold-new-updates-hours", 18)
+        showSettings(
+            plugin = plugin,
+            player = player,
+            title = "Updates & Stats",
+            body = listOf(
+                "Updates: how the plugin handles a new version. Waiting on a",
+                "brand-new release skips one that turns out broken and gets",
+                "fixed within hours.",
+                "",
+                "Anonymous stats count which settings are in use. Error reports",
+                "send this plugin's own errors with IP addresses, file paths,",
+                "passwords and player ids removed. Neither includes anything",
+                "about your players or your world.",
+                "",
+                "Changes on this page take effect after a restart, except extra",
+                "logging, which applies at once.",
+            ),
+            inputs = listOf(
+                singleOption("update.mode", "When a new version comes out", modes, mode),
+                slider("update.check-interval-hours", "Check every (hours)", 1f, maxOf(48, interval).toFloat(), 1f, interval.toFloat()),
+                toggle("update.hold-new-updates", "Wait before taking a brand-new release", cfg.getBoolean("update.hold-new-updates", false)),
+                slider("update.hold-new-updates-hours", "How long to wait (hours)", 1f, maxOf(72, holdHours).toFloat(), 1f, holdHours.toFloat()),
+                toggle("metrics.enabled", "Send anonymous usage stats", cfg.getBoolean("metrics.enabled", true)),
+                toggle("metrics.error-reporting", "Send automatic error reports", cfg.getBoolean("metrics.error-reporting", true)),
+                toggle("debug.verbose-logging", "Extra logging (noisy, for bug reports)", cfg.getBoolean("debug.verbose-logging", false)),
+            ),
+            needsRestart = true,
+        ) { view ->
+            view.getText("update.mode")?.let { cfg.set("update.mode", it) }
+            view.getFloat("update.check-interval-hours")?.let { cfg.set("update.check-interval-hours", it.toInt()) }
+            view.getFloat("update.hold-new-updates-hours")?.let { cfg.set("update.hold-new-updates-hours", it.toInt()) }
+            listOf(
+                "update.hold-new-updates", "metrics.enabled", "metrics.error-reporting", "debug.verbose-logging",
+            ).forEach { key -> view.getBoolean(key)?.let { cfg.set(key, it) } }
         }
     }
 }

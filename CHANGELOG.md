@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
+### Changed
+- **Every setting is now in the `/betterend` menu**, so there is no reason left to open `config.yml`. The old "End Cities" screen is split into **Per-player Loot**, **Protection** and **Finding Cities & Resets**, and everything that was file-only now has a place: the XP level price, price doubling and the frame shimmer (on **Elytra Frames**), ship-only protection, the takeable dragon head and how far protection reaches past each tower (on **Protection**), and worlds to leave alone, the startup check and the saved-copy size limit (on **Finding Cities & Resets**). Two new pages, **Storage** and **Updates & Stats**, cover SQLite or MySQL, update checks, anonymous stats, error reports and extra logging; those take effect after a restart, and the menu says so. The setup tour also asks about the XP price and ship-only protection.
+
 ### Fixed
 - **MySQL storage never started.** Setting up the tables used a command MySQL doesn't have, so with `database.type: mysql` the plugin stopped during startup and did nothing at all. SQLite servers were not affected. Loot copies stored in MySQL can also now hold more than 64 KB, so a chest full of written books or packed shulker boxes saves properly.
 - **Loot could be taken twice.** A player who had a city chest open when the server stopped or reloaded kept what they took, while the chest came back full on the next start. The same happened if a chest was reopened before the previous close had finished saving. Open chests are now saved and closed before shutdown, and a reopen always sees the latest contents.
@@ -18,7 +21,6 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - `/betterend tp` now lands you on top of the city's base tower, instead of the middle of the city's area, which can be open void.
 - `/betterend delete` now also forgets that city's elytra claims straight away, and lets the city be found again without a restart, as the documentation describes.
 - `/betterend resetloot` no longer stalls the server looking up a player name that has never joined.
-- The settings menu and setup tour now include every setting: the XP level price, price doubling, the frame shimmer, ship-only protection and the takeable dragon head. Before, those could only be changed in `config.yml`.
 
 ## [0.3.0] - 2026-09-19
 ### Added
