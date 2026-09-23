@@ -11,34 +11,28 @@ import java.io.File
 import java.util.UUID
 
 /**
- * Soft integration with AntiDupePro (ADP). No compile/link dependency - ADP's
- * ownership tag is a plain PersistentDataContainer STRING (the holder's UUID)
- * under a key its admin configures (`ownership.namespace`/`ownership.key`,
- * default `antidupepro:adp_owner`), so everything here works through public
- * Bukkit API plus ADP's own config and data files.
+ * Soft integration with Better Anti-Dupe, with no compile-time dependency.
  *
- * Why Mantle cares (see ElytraVaults):
- * - Vanilla vaults match key items with `isSameItemSameComponents`; an ADP
- *   ownership tag on the configured key stack makes the vault demand the
- *   stamping admin's exact UUID tag - no player can ever open it.
- *   [stripOwnership] removes the tag from the stamped key.
- * - A vault-dispensed elytra is a brand-new stack ADP has never seen. Pre-tagging
- *   it with the opener's UUID ([tagOwner]) makes ADP's pickup handler treat it as
- *   the player's own item: no "untracked solo pickup" warning and no immediate
- *   reconciliation pass racing the ledger credit (ELYTRA alerts at excess >= 1).
+ * Its ownership tag is a plain PDC string (the holder's UUID) under a key its
+ * config names, so everything here goes through Bukkit API and its own files.
+ * A claimed elytra is pre-stamped with the claimer, so it counts as their own
+ * item instead of an untracked pickup.
  */
 object AntiDupeCompat {
 
-    private fun adp(): Plugin? =
-        Bukkit.getPluginManager().getPlugin("AntiDupePro")?.takeIf { it.isEnabled }
+    // Current name first; AntiDupePro is what it was called before.
+    private val PLUGIN_NAMES = listOf("BetterAntiDupe", "AntiDupePro")
+
+    private fun adp(): Plugin? = PLUGIN_NAMES.firstNotNullOfOrNull { name ->
+        Bukkit.getPluginManager().getPlugin(name)?.takeIf { it.isEnabled }
+    }
 
     val isPresent: Boolean get() = adp() != null
 
     /**
-     * Every ownership key ADP currently recognizes: the configured primary, the
-     * declared `ownership.legacy_keys`, and the key recorded in ADP's
-     * `ownership-key` marker file (its self-healing rename mechanism - after a
-     * rename the marker names the previous key, which is still live on items).
+     * Every ownership key it currently recognises: the configured primary, the
+     * declared legacy keys, and the key in its `ownership-key` marker file
+     * (the previous key after a rename, still live on older items).
      */
     fun ownershipKeys(): List<NamespacedKey> {
         val plugin = adp() ?: return emptyList()
@@ -61,7 +55,7 @@ object AntiDupeCompat {
         return keys.toList()
     }
 
-    /** Stamp [item] as owned by [owner] under ADP's primary key. No-op when ADP is absent. */
+    /** Stamps [item] as owned by [owner] under the primary key. No-op when the plugin is absent. */
     fun tagOwner(item: ItemStack, owner: UUID) {
         val primary = ownershipKeys().firstOrNull() ?: return
         item.editMeta { meta ->
@@ -70,11 +64,9 @@ object AntiDupeCompat {
     }
 
     /**
-     * Remove ADP ownership tags from [item]. Belt-and-braces: besides the keys ADP
-     * declares, any remaining STRING entry whose value parses as a UUID is dropped
-     * too (a de-branded key renamed since the marker was written still stores the
-     * holder's UUID; legitimate custom-item identity tags don't).
-     * @return true if anything was removed.
+     * Removes ownership tags from [item]. Any other non-minecraft STRING entry
+     * holding a UUID goes too, which catches a key renamed since the marker was
+     * written. Returns true if anything was removed.
      */
     fun stripOwnership(item: ItemStack): Boolean {
         if (!isPresent) return false
@@ -95,10 +87,8 @@ object AntiDupeCompat {
     }
 
     /**
-     * Whether ADP watches this material (its `materials.yml` tracked list; shulker
-     * boxes are hardcoded-tracked on ADP's side). A tracked material is a bad vault
-     * key: every player's copy carries their own ownership tag, so no copy matches
-     * the stored key components and the vault opens for nobody.
+     * Whether it tracks [material]. Every player's copy of a tracked item carries
+     * their own ownership tag, so a tracked item can never match a cost item.
      */
     fun isTrackedMaterial(material: Material): Boolean {
         val plugin = adp() ?: return false
