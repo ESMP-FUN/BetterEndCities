@@ -50,11 +50,22 @@ elytra:
     # This stores a whole item, not just an item name, so editing it by hand
     # will not work.
     item: ""
-    # How many of that item a claim takes. 0 means claims are free.
+    # How many of that item a claim takes. 0 means no item is taken.
     amount: 0
+    # Experience levels a claim also takes, on top of the item. 0 means none.
+    levels: 0
+    # Make every elytra a player buys cost double the one before: 10 levels,
+    # then 20, then 40. The price drops back once 'refresh-hours' (under 'loot'
+    # below) has passed since each purchase. Off means every elytra costs the
+    # same.
+    double-each-claim: false
   # Float a small note above the ship's elytra frame, showing the cost, or
-  # "Punch to claim" when claims are free.
+  # "Punch to claim" when claims are free. Players can also right-click the
+  # frame to see what their next elytra costs.
   text-display: true
+  # A faint, eerie shimmer of particles around the frame when a player is
+  # nearby, so they notice it's special.
+  frame-aura: false
 
 loot:
   # Every player who opens a city chest gets their own private copy of what's
@@ -78,6 +89,17 @@ protection:
   # than as one big box round the whole city, so the empty space between them is
   # still yours to build in.
   enabled: true
+  # What is protected:
+  #   whole-city  every tower, bridge and the ship
+  #   ship-only   just the ship, plus the city's own loot chests. Players can
+  #               break, build on and blow up the towers and bridges. Pair it
+  #               with 'auto-reset-on-refresh' (under 'snapshot' below) so the
+  #               city is put back each time its loot comes back.
+  scope: whole-city
+  # Let players take the dragon head off the ship even though the ship is
+  # protected. Once a ship's head is taken it is gone for good: resetting the
+  # city never puts it back.
+  dragon-head-takeable: false
   # How many blocks protection reaches past each tower, to cover its trim and
   # decoration. Raising this starts protecting genuinely empty space between
   # towers. Lowering it leaves decoration breakable.

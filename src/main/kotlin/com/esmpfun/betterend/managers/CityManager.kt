@@ -36,7 +36,7 @@ class CityManager(private val plugin: BetterEnd) {
         plugin.databaseManager.connection.use { conn ->
             conn.prepareStatement(
                 "SELECT id, world, min_x, min_y, min_z, max_x, max_y, max_z, " +
-                    "origin_x, origin_y, origin_z, created_at, last_reset, snapshot_file, loot_cycle_start, has_ship FROM cities"
+                    "origin_x, origin_y, origin_z, created_at, last_reset, snapshot_file, loot_cycle_start, has_ship, ship_x, ship_y, ship_z, head_taken FROM cities"
             ).use { stmt ->
                 stmt.executeQuery().use { rs ->
                     while (rs.next()) {
@@ -55,6 +55,10 @@ class CityManager(private val plugin: BetterEnd) {
                             lastReset = rs.getLong("last_reset").takeIf { !rs.wasNull() },
                             snapshotFile = rs.getString("snapshot_file"),
                             hasShip = rs.getInt("has_ship") != 0,
+                            shipAnchor = rs.getInt("ship_x").let { x ->
+                                if (rs.wasNull()) null else Triple(x, rs.getInt("ship_y"), rs.getInt("ship_z"))
+                            },
+                            headTaken = rs.getInt("head_taken") != 0,
                         )
                         val cycle = rs.getLong("loot_cycle_start")
                         if (!rs.wasNull() && cycle > 0L) cycleStarts[id] = AtomicLong(cycle)
@@ -244,6 +248,41 @@ class CityManager(private val plugin: BetterEnd) {
             cache[id] = city.copy(hasShip = hasShip)
         } catch (e: Exception) {
             plugin.logger.warning("[CityManager] setHasShip($id) failed: ${e.message}")
+        }
+    }
+
+    /** Remembers where the ship is, the first time it's seen. Also marks the city as having one. */
+    suspend fun setShipAnchor(id: Int, x: Int, y: Int, z: Int) = withContext(Dispatchers.IO) {
+        val city = cache[id] ?: return@withContext
+        if (city.shipAnchor != null) return@withContext
+        cache[id] = city.copy(shipAnchor = Triple(x, y, z), hasShip = true)
+        try {
+            plugin.databaseManager.connection.use { conn ->
+                conn.prepareStatement("UPDATE cities SET ship_x = ?, ship_y = ?, ship_z = ?, has_ship = 1 WHERE id = ?").use { stmt ->
+                    stmt.setInt(1, x); stmt.setInt(2, y); stmt.setInt(3, z)
+                    stmt.setInt(4, id)
+                    stmt.executeUpdate()
+                }
+            }
+        } catch (e: Exception) {
+            plugin.logger.warning("[CityManager] setShipAnchor($id) failed: ${e.message}")
+        }
+    }
+
+    /** Marks the ship's dragon head as taken for good (DB + cache). */
+    suspend fun setHeadTaken(id: Int) = withContext(Dispatchers.IO) {
+        val city = cache[id] ?: return@withContext
+        if (city.headTaken) return@withContext
+        cache[id] = city.copy(headTaken = true)
+        try {
+            plugin.databaseManager.connection.use { conn ->
+                conn.prepareStatement("UPDATE cities SET head_taken = 1 WHERE id = ?").use { stmt ->
+                    stmt.setInt(1, id)
+                    stmt.executeUpdate()
+                }
+            }
+        } catch (e: Exception) {
+            plugin.logger.warning("[CityManager] setHeadTaken($id) failed: ${e.message}")
         }
     }
 

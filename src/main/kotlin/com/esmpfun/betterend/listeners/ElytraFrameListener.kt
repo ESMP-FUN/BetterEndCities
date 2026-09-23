@@ -48,6 +48,8 @@ import org.bukkit.persistence.PersistentDataType
  *   while the feature is enabled.
  * - **Hint**: an optional floating text above the frame shows the cost (or
  *   "Punch to claim" when free).
+ * - **Price**: XP levels and/or an item, optionally doubling with each claim the
+ *   player made within one loot refresh. Right-clicking the frame shows it.
  */
 class ElytraFrameListener(private val plugin: BetterEnd) : Listener {
 
@@ -59,13 +61,16 @@ class ElytraFrameListener(private val plugin: BetterEnd) : Listener {
         /** The floating hint for the current config: cost line or claim line. */
         private fun hintText(plugin: BetterEnd): Component {
             val cost = plugin.elytraClaimManager.costStack()
-            return if (cost == null) {
-                Component.text("Punch to claim your Elytra", NamedTextColor.GRAY)
-            } else {
-                Component.text("Elytra — costs ", NamedTextColor.GRAY)
-                    .append(Component.text("${cost.amount} × ", NamedTextColor.AQUA))
+            val levels = plugin.config.getInt("elytra.cost.levels", 0)
+            if (cost == null && levels <= 0) return Component.text("Punch to claim your Elytra", NamedTextColor.GRAY)
+            var text = Component.text("Elytra — costs ", NamedTextColor.GRAY)
+            if (levels > 0) text = text.append(Component.text("$levels levels", NamedTextColor.AQUA))
+            if (levels > 0 && cost != null) text = text.append(Component.text(" and ", NamedTextColor.GRAY))
+            if (cost != null) {
+                text = text.append(Component.text("${cost.amount} × ", NamedTextColor.AQUA))
                     .append(cost.effectiveName().color(NamedTextColor.AQUA))
             }
+            return text
         }
 
         /**
@@ -136,7 +141,47 @@ class ElytraFrameListener(private val plugin: BetterEnd) : Listener {
                 continue
             }
             val frame = entity as? ItemFrame ?: continue
-            if (isShipFrame(frame) && textDisplay()) spawnHintIfMissing(plugin, frame)
+            if (!isShipFrame(frame)) continue
+            loadedShipFrames.add(frame)
+            rememberShip(frame)
+            if (textDisplay()) spawnHintIfMissing(plugin, frame)
+        }
+    }
+
+    // ── aura ─────────────────────────────────────────────────────────────────
+
+    private val loadedShipFrames: MutableSet<ItemFrame> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+
+    init {
+        // Frames already loaded before the plugin started never fire EntitiesLoadEvent.
+        if (!plugin.scheduler.isFolia) {
+            for (world in plugin.server.worlds) {
+                if (world.environment != World.Environment.THE_END) continue
+                world.getEntitiesByClass(ItemFrame::class.java)
+                    .filterTo(loadedShipFrames) { it.persistentDataContainer.has(frameTag, PersistentDataType.BYTE) }
+            }
+        }
+        plugin.scheduler.runTaskTimer(Runnable { auraTick() }, 40L, 10L)
+    }
+
+    /** A sparse, eerie shimmer round each ship frame with a player close by, so players notice it. */
+    private fun auraTick() {
+        if (!enabled() || !plugin.config.getBoolean("elytra.frame-aura", false)) return
+        loadedShipFrames.removeIf { !it.isValid }
+        for (frame in loadedShipFrames) {
+            plugin.scheduler.runAtEntity(frame, Runnable {
+                val loc = frame.location.toCenterLocation()
+                val world = frame.world
+                if (world.getNearbyPlayers(loc, 24.0).isEmpty()) return@Runnable
+                val random = java.util.concurrent.ThreadLocalRandom.current()
+                world.spawnParticle(org.bukkit.Particle.REVERSE_PORTAL, loc, 6, 0.35, 0.35, 0.35, 0.02)
+                if (random.nextInt(100) < 35) {
+                    world.spawnParticle(org.bukkit.Particle.SOUL_FIRE_FLAME, loc, 2, 0.25, 0.25, 0.25, 0.005)
+                }
+                if (random.nextInt(100) < 4) {
+                    world.playSound(loc, Sound.AMBIENT_SOUL_SAND_VALLEY_ADDITIONS, 0.5f, 0.55f)
+                }
+            })
         }
     }
 
@@ -176,11 +221,11 @@ class ElytraFrameListener(private val plugin: BetterEnd) : Listener {
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     fun onFrameChange(event: PlayerItemFrameChangeEvent) {
         if (!enabled() || !plugin.isReady) return
-        if (event.action != PlayerItemFrameChangeEvent.ItemFrameChangeAction.REMOVE) return
         val frame = event.itemFrame
         if (!isShipFrame(frame)) return
 
         // The frame's elytra NEVER leaves — everything below hands out copies.
+        // A right-click would spin the elytra, so it shows the price instead.
         event.isCancelled = true
         val player = event.player
 
@@ -192,6 +237,7 @@ class ElytraFrameListener(private val plugin: BetterEnd) : Listener {
             player.sendActionBar(Component.text("This ship is still being registered — try again in a moment.", NamedTextColor.YELLOW))
             return
         }
+        rememberShip(frame)
 
         if (plugin.elytraClaimManager.hasClaimed(city.id, player.uniqueId)) {
             val msg = when (plugin.elytraClaimManager.mode()) {
@@ -207,19 +253,28 @@ class ElytraFrameListener(private val plugin: BetterEnd) : Listener {
             return
         }
 
-        // Optional cost, consumed from the claimer's inventory.
-        val cost = plugin.elytraClaimManager.costStack()
-        if (cost != null) {
-            if (!player.inventory.containsAtLeast(cost, cost.amount)) {
-                player.sendActionBar(
-                    Component.text("You need ${cost.amount} × ", NamedTextColor.RED)
-                        .append(cost.effectiveName().color(NamedTextColor.RED))
-                        .append(Component.text(" to claim this elytra.", NamedTextColor.RED))
-                )
-                player.playSound(player.location, Sound.BLOCK_NOTE_BLOCK_BASS, 0.7f, 0.7f)
-                return
+        val price = plugin.elytraClaimManager.priceFor(player.uniqueId)
+        if (event.action == PlayerItemFrameChangeEvent.ItemFrameChangeAction.ROTATE) {
+            player.sendMessage(priceMessage(price))
+            return
+        }
+        if (event.action != PlayerItemFrameChangeEvent.ItemFrameChangeAction.REMOVE) return
+
+        val item = price.item
+        val missingItems = item != null && price.items > 0 && !player.inventory.containsAtLeast(item, price.items)
+        if (player.level < price.levels || missingItems) {
+            player.sendMessage(priceMessage(price))
+            player.playSound(player.location, Sound.BLOCK_NOTE_BLOCK_BASS, 0.7f, 0.7f)
+            return
+        }
+        if (price.levels > 0) player.giveExpLevels(-price.levels)
+        if (item != null) {
+            var left = price.items
+            while (left > 0) {
+                val take = minOf(left, item.maxStackSize)
+                player.inventory.removeItem(item.clone().apply { amount = take })
+                left -= take
             }
-            player.inventory.removeItem(cost.clone())
         }
 
         val elytra = ItemStack(Material.ELYTRA)
@@ -234,6 +289,44 @@ class ElytraFrameListener(private val plugin: BetterEnd) : Listener {
         if (plugin.config.getBoolean("debug.verbose-logging", false)) {
             plugin.logger.info("[Elytra] ${player.name} claimed at city #${city.id} (${frame.location.blockX},${frame.location.blockY},${frame.location.blockZ})")
         }
+    }
+
+    /** "This elytra costs 20 levels and 10 × Netherite Scrap", plus how the doubling works. */
+    private fun priceMessage(price: com.esmpfun.betterend.managers.ElytraClaimManager.Price): Component {
+        val parts = buildList {
+            if (price.levels > 0) add(Component.text("${price.levels} levels", NamedTextColor.AQUA))
+            val item = price.item
+            if (item != null && price.items > 0) {
+                add(Component.text("${price.items} × ", NamedTextColor.AQUA).append(item.effectiveName().color(NamedTextColor.AQUA)))
+            }
+        }
+        var line = Component.text("This elytra ", NamedTextColor.GRAY)
+        line = if (parts.isEmpty()) line.append(Component.text("is free. Punch the frame to take it.", NamedTextColor.GRAY))
+        else {
+            line = line.append(Component.text("costs ", NamedTextColor.GRAY)).append(parts[0])
+            if (parts.size > 1) line = line.append(Component.text(" and ", NamedTextColor.GRAY)).append(parts[1])
+            line.append(Component.text(". Punch the frame to buy it.", NamedTextColor.GRAY))
+        }
+        if (parts.isNotEmpty() && plugin.config.getBoolean("elytra.cost.double-each-claim", false)) {
+            val hours = plugin.config.getInt("loot.refresh-hours", 12)
+            val span = when {
+                hours <= 0 -> null
+                hours % 24 == 0 -> (hours / 24).let { if (it == 1) "a day" else "$it days" }
+                else -> if (hours == 1) "an hour" else "$hours hours"
+            }
+            val rule = if (span == null) " Every elytra you buy doubles the price of the next one."
+            else " Every elytra you buy doubles the price of the next one, until $span after you bought it."
+            line = line.append(Component.text(rule, NamedTextColor.DARK_GRAY))
+        }
+        return line
+    }
+
+    /** Lets protection pick the ship out of the city's pieces. */
+    private fun rememberShip(frame: ItemFrame) {
+        val city = plugin.cityManager.getCachedCityAt(frame.location) ?: return
+        if (city.shipAnchor != null) return
+        val b = frame.location.block
+        plugin.launchAsync { plugin.cityManager.setShipAnchor(city.id, b.x, b.y, b.z) }
     }
 
     private fun giveOrDrop(player: Player, item: ItemStack) {

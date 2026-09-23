@@ -62,7 +62,10 @@ elytra:
   cost:
     item: ""
     amount: 0
+    levels: 0
+    double-each-claim: false
   text-display: true
+  frame-aura: false
 ```
 
 | Setting | Default | What it does |
@@ -70,8 +73,11 @@ elytra:
 | `enabled` | `true` | Renewable elytra frames, on or off |
 | `claim-mode` | `per-ship` | `per-ship`: one per player per ship, ever. `per-refresh`: claimable again whenever that city's loot comes back. `global`: one per player in total, across every ship |
 | `cost.item` | `""` | What a claim costs. **Set this in-game**, not by hand |
-| `cost.amount` | `0` | How many it takes. `0` means free |
-| `text-display` | `true` | Float a small note above the frame showing the cost, or "Punch to claim" |
+| `cost.amount` | `0` | How many it takes. `0` means no item |
+| `cost.levels` | `0` | Experience levels a claim also takes. `0` means none |
+| `cost.double-each-claim` | `false` | Each elytra a player buys costs double the one before. The price drops back once `loot.refresh-hours` has passed since each purchase |
+| `text-display` | `true` | Float a small note above the frame showing the cost, or "Punch to claim". Right-clicking the frame always shows the player's own price |
+| `frame-aura` | `false` | A faint shimmer of particles around the frame when a player is nearby |
 
 {% hint style="warning" %}
 `cost.item` stores a whole item, not just an item name. Use `/betterend`, **Choose Cost Item**. Editing it by hand will not work.
@@ -107,6 +113,8 @@ The in-game slider goes up to 168 hours, which is one week. Larger numbers are a
 ```yaml
 protection:
   enabled: true
+  scope: whole-city
+  dragon-head-takeable: false
   piece-padding: 3
   block-place: true
   block-explosions: true
@@ -116,6 +124,8 @@ protection:
 | Setting | Default | What it does |
 |---|---|---|
 | `enabled` | `true` | Grief protection, the main switch |
+| `scope` | `whole-city` | `whole-city`: every tower, bridge and the ship. `ship-only`: just the ship and the city's own loot chests, so towers and bridges can be broken, built on and blown up. Pair it with `snapshot.auto-reset-on-refresh` |
+| `dragon-head-takeable` | `false` | Players can take the ship's dragon head. Once taken it is gone for good, and resets never put it back |
 | `piece-padding` | `3` | How many blocks protection reaches past each tower, to cover its trim and decoration |
 | `block-place` | `true` | Stop players building inside a protected part of the city |
 | `block-explosions` | `true` | Protect city blocks from creepers, TNT and other explosions |

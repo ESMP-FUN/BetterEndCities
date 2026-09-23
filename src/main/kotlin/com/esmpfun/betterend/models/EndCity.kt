@@ -33,6 +33,10 @@ data class EndCity(
      * snapshot capture, or when the ship's elytra frame is first seen.
      */
     val hasShip: Boolean = false,
+    /** A block inside the ship (its dragon head or elytra frame); picks the ship out of [pieces]. */
+    val shipAnchor: Triple<Int, Int, Int>? = null,
+    /** The ship's dragon head was taken, so resets must not put it back. */
+    val headTaken: Boolean = false,
 ) {
     fun getWorld(): World? = Bukkit.getWorld(world)
 
@@ -65,5 +69,13 @@ data class EndCity(
         if (loc.world?.name != world) return false
         val x = loc.blockX; val y = loc.blockY; val z = loc.blockZ
         return pieces.any { it.expanded(pad).contains(x, y, z) }
+    }
+
+    /** Whether [loc] is inside the ship piece expanded by [pad]. False while the ship's position is unknown. */
+    fun inShip(loc: Location, pad: Int): Boolean {
+        val a = shipAnchor ?: return false
+        if (loc.world?.name != world) return false
+        val x = loc.blockX; val y = loc.blockY; val z = loc.blockZ
+        return pieces.any { it.contains(a.first, a.second, a.third) && it.expanded(pad).contains(x, y, z) }
     }
 }

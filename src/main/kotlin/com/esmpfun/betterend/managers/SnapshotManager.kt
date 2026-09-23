@@ -117,9 +117,11 @@ class SnapshotManager(private val plugin: BetterEnd) {
         // data/minecraft/structures/end_city), and we just read every piece
         // block anyway. Wall + floor variants both serialize with a
         // "dragon_head"/"dragon_wall_head" block id.
-        if (!city.hasShip && blocks.values.any { it.contains("dragon_head") || it.contains("dragon_wall_head") }) {
-            plugin.cityManager.setHasShip(city.id, true)
-            plugin.logger.info("[Snapshot] City #${city.id} contains an End Ship (dragon head found).")
+        blocks.entries.firstOrNull { isDragonHead(it.value) }?.let { (rel, _) ->
+            if (!city.hasShip) plugin.logger.info("[Snapshot] City #${city.id} contains an End Ship (dragon head found).")
+            plugin.cityManager.setShipAnchor(
+                city.id, origin.first + rel.first, origin.second + rel.second, origin.third + rel.third,
+            )
         }
 
         return withContext(Dispatchers.IO) {
@@ -162,7 +164,10 @@ class SnapshotManager(private val plugin: BetterEnd) {
 
         // Group absolute positions + their block data by chunk.
         val byChunk = HashMap<Long, MutableList<Pair<Location, String>>>()
+        // A taken dragon head stays gone; restoring it would re-arm anything keyed on it.
+        val skipHead = plugin.cityManager.byId(city.id)?.headTaken == true
         for ((rel, str) in data.blocks) {
+            if (skipHead && isDragonHead(str)) continue
             val x = data.originX + rel.first; val y = data.originY + rel.second; val z = data.originZ + rel.third
             val ck = (x shr 4).toLong() shl 32 or ((z shr 4).toLong() and 0xffffffffL)
             byChunk.getOrPut(ck) { mutableListOf() }.add(Location(world, x.toDouble(), y.toDouble(), z.toDouble()) to str)
@@ -199,6 +204,9 @@ class SnapshotManager(private val plugin: BetterEnd) {
             (if (f > 0) " ($f failures — see warnings above)" else ""))
         return restored.get()
     }
+
+    private fun isDragonHead(blockData: String) =
+        blockData.contains("dragon_head") || blockData.contains("dragon_wall_head")
 
     fun deleteSnapshot(cityId: Int): Boolean = fileFor(cityId).let { if (it.exists()) it.delete() else false }
 }
