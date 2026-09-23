@@ -13,17 +13,7 @@ import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 import java.util.UUID
 
-/**
- * `/betterend` - menu-first admin command (Paper plugins register commands in
- * code, not via paper-plugin.yml).
- *
- *   /betterend                 the dialog config menu
- *   /betterend setup           guided setup tour
- *   /betterend list|info|tp    city inspection
- *   /betterend snapshot|reset  structure capture/restore
- *   /betterend resetloot|clearclaims|delete  surgical resets
- *   /betterend reload|update   housekeeping
- */
+/** `/betterend` and its subcommands. */
 @Suppress("UnstableApiUsage")
 class BeCommand(private val plugin: BetterEnd) : BasicCommand {
 
@@ -149,8 +139,7 @@ class BeCommand(private val plugin: BetterEnd) : BasicCommand {
         val city = resolve(sender, idArg) ?: return
         val world = city.getWorld() ?: run { sender.sendMessage("§cWorld '${city.world}' is not loaded."); return }
         val r = city.region
-        // Stand on top of the first piece (the city's base tower): the middle
-        // of the whole city's box can be open void.
+        // The first piece is the base tower; the middle of the city's box can be void.
         val base = city.pieces.firstOrNull() ?: r
         val x = (base.minX + base.maxX) / 2
         val z = (base.minZ + base.maxZ) / 2
@@ -176,12 +165,7 @@ class BeCommand(private val plugin: BetterEnd) : BasicCommand {
         }
     }
 
-    /**
-     * Full city refresh: restore blocks from the snapshot (when one exists),
-     * clear everyone's loot copies, and start a fresh loot cycle - which also
-     * re-arms elytra claims in per-refresh mode. Per-ship/global claims are
-     * deliberately untouched; that's what clearclaims is for.
-     */
+    // Starting a cycle also re-arms per-refresh claims; other claim modes are clearclaims' job.
     private fun handleReset(sender: CommandSender, idArg: String?) {
         val city = resolve(sender, idArg) ?: return
         sender.sendMessage("§7Resetting city #${city.id}...")

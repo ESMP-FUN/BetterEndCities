@@ -15,20 +15,9 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Per-player End City container loot (Lootr-style). Ported from
- * TrialChamberPro's ContainerLootManager.
- *
- * Every player gets a private copy of a city container's contents, stored one
- * row per (container position, player) in `player_container_loot`. The real
- * block's inventory is never modified - it stays the pristine template every new
- * player's copy is cloned from. The shared template lives in `container_template`
- * and persists across resets so op edits stick.
- *
- * Lifecycle: per-player copies are cleared per city on reset ([clearCity]) and
- * cascade-deleted with the city row.
- *
- * Contents encoding: base64 of a length-prefixed sequence of
- * `ItemStack.serializeAsBytes()` blobs (slot-faithful; -1 marks an empty slot).
+ * Storage for per-player container copies and the shared templates they start
+ * from. The real block is never changed. Contents are base64 of length-prefixed
+ * `serializeAsBytes()` blobs, one per slot, with -1 for an empty slot.
  */
 class ContainerLootManager(private val plugin: BetterEnd) {
 
@@ -37,17 +26,12 @@ class ContainerLootManager(private val plugin: BetterEnd) {
     private data class CopyKey(val cityId: Int, val pos: ContainerPos, val player: UUID)
     private data class TemplateKey(val cityId: Int, val pos: ContainerPos)
 
-    /**
-     * Closed inventories whose database write hasn't landed yet. Reads check
-     * these first, so reopening a chest straight after closing it can never
-     * serve the contents from before the close (which would hand the same
-     * loot out twice). Whatever is still here on shutdown is written by
-     * [flushPending].
-     */
+    // Closed inventories not yet written. Reads check these first, or a quick
+    // reopen would serve the pre-close contents and hand the loot out twice.
     private val pendingCopies = ConcurrentHashMap<CopyKey, Array<ItemStack?>>()
     private val pendingTemplates = ConcurrentHashMap<TemplateKey, Array<ItemStack?>>()
 
-    /** Saves a closed private copy in the background. [contents] must not be touched afterwards. */
+    /** [contents] must not be touched afterwards. */
     fun queueSaveContents(cityId: Int, pos: ContainerPos, player: UUID, contents: Array<ItemStack?>) {
         val key = CopyKey(cityId, pos, player)
         pendingCopies[key] = contents
@@ -56,7 +40,7 @@ class ContainerLootManager(private val plugin: BetterEnd) {
         }
     }
 
-    /** Saves an edited template in the background. [contents] must not be touched afterwards. */
+    /** [contents] must not be touched afterwards. */
     fun queueUpdateTemplate(cityId: Int, pos: ContainerPos, contents: Array<ItemStack?>) {
         val key = TemplateKey(cityId, pos)
         pendingTemplates[key] = contents
@@ -65,7 +49,7 @@ class ContainerLootManager(private val plugin: BetterEnd) {
         }
     }
 
-    /** Writes every save still waiting, blocking until done. For shutdown, after the pool's last use by anything else. */
+    /** Blocks until every waiting save is written. For shutdown. */
     fun flushPending() {
         if (pendingCopies.isEmpty() && pendingTemplates.isEmpty()) return
         runBlocking {
@@ -82,7 +66,7 @@ class ContainerLootManager(private val plugin: BetterEnd) {
 
     private fun Array<ItemStack?>.deepCopy(): Array<ItemStack?> = Array(size) { this[it]?.clone() }
 
-    /** A player's private contents for a container, or null on first open. */
+    /** Null on the player's first open. */
     suspend fun loadContents(
         cityId: Int,
         pos: ContainerPos,
@@ -117,7 +101,7 @@ class ContainerLootManager(private val plugin: BetterEnd) {
         }
     }
 
-    /** Persists a player's private contents for a container (upsert). False when the write failed. */
+    /** False when the write failed. */
     private suspend fun saveContents(
         cityId: Int,
         pos: ContainerPos,
@@ -152,14 +136,14 @@ class ContainerLootManager(private val plugin: BetterEnd) {
             }
             true
         } catch (e: Exception) {
-            // Kept in pendingCopies, so a reopen still sees it and shutdown retries it.
+            // Left in pendingCopies, so a reopen still sees it and shutdown retries it.
             plugin.logger.warning("[ContainerLoot] Save failed (${pos.x},${pos.y},${pos.z}/$player): ${e.message}")
             com.esmpfun.betterend.integrations.MetricsService.reportHandled(e, "container-loot-save")
             false
         }
     }
 
-    /** The shared template for a container, or null when not yet materialized. */
+    /** Null until the container is first opened. */
     suspend fun loadTemplate(
         cityId: Int,
         pos: ContainerPos
@@ -190,7 +174,6 @@ class ContainerLootManager(private val plugin: BetterEnd) {
         }
     }
 
-    /** Persists the shared template for a container (upsert). */
     suspend fun saveTemplate(
         cityId: Int,
         pos: ContainerPos,
@@ -228,7 +211,7 @@ class ContainerLootManager(private val plugin: BetterEnd) {
         }
     }
 
-    /** Updates only the CONTENTS of an existing template (op edit), preserving its icon. False when the write failed. */
+    /** Keeps the stored material. False when the write failed. */
     private suspend fun updateTemplateContents(
         cityId: Int,
         pos: ContainerPos,
@@ -254,14 +237,12 @@ class ContainerLootManager(private val plugin: BetterEnd) {
         }
     }
 
-    /** One stored template: its position, decoded contents, and container icon. */
     data class TemplateRow(
         val pos: ContainerPos,
         val contents: Array<ItemStack?>,
         val material: org.bukkit.Material
     )
 
-    /** Lists every materialized template for a city. */
     suspend fun listTemplates(cityId: Int): List<TemplateRow> = withContext(Dispatchers.IO) {
         val out = mutableListOf<TemplateRow>()
         try {
@@ -287,7 +268,6 @@ class ContainerLootManager(private val plugin: BetterEnd) {
         out
     }
 
-    /** Whether a template already exists for a container position. */
     suspend fun hasTemplate(cityId: Int, pos: ContainerPos): Boolean = withContext(Dispatchers.IO) {
         try {
             plugin.databaseManager.connection.use { conn ->
@@ -305,7 +285,6 @@ class ContainerLootManager(private val plugin: BetterEnd) {
         }
     }
 
-    /** Counts a city's per-player container copies. */
     suspend fun countPlayerCopies(cityId: Int): Int = withContext(Dispatchers.IO) {
         try {
             plugin.databaseManager.connection.use { conn ->
@@ -322,7 +301,7 @@ class ContainerLootManager(private val plugin: BetterEnd) {
         }
     }
 
-    /** Deletes every shared template for a city (they re-materialize on next access). */
+    /** They are rolled again on the next open. */
     suspend fun clearTemplates(cityId: Int): Int = withContext(Dispatchers.IO) {
         pendingTemplates.keys.removeIf { it.cityId == cityId }
         try {
@@ -338,7 +317,6 @@ class ContainerLootManager(private val plugin: BetterEnd) {
         }
     }
 
-    /** Deletes a single container's template. */
     suspend fun deleteTemplate(cityId: Int, pos: ContainerPos): Boolean = withContext(Dispatchers.IO) {
         pendingTemplates.remove(TemplateKey(cityId, pos))
         try {
@@ -357,11 +335,7 @@ class ContainerLootManager(private val plugin: BetterEnd) {
         }
     }
 
-    /**
-     * Drops every player's container copies for a city - fresh loot for everyone
-     * after a reset. Shared templates are intentionally KEPT (op edits persist
-     * across resets). Returns the number of copies removed.
-     */
+    /** Fresh loot for everyone; templates are kept. Returns copies removed. */
     suspend fun clearCity(cityId: Int): Int = withContext(Dispatchers.IO) {
         pendingCopies.keys.removeIf { it.cityId == cityId }
         try {
@@ -381,11 +355,7 @@ class ContainerLootManager(private val plugin: BetterEnd) {
         }
     }
 
-    /**
-     * Drops one player's container copies for a city, so they re-roll from the
-     * template on their next open - the "reset this player's loot" admin action.
-     * Returns rows removed.
-     */
+    /** Returns copies removed. */
     suspend fun clearPlayer(cityId: Int, player: UUID): Int = withContext(Dispatchers.IO) {
         pendingCopies.keys.removeIf { it.cityId == cityId && it.player == player }
         try {
@@ -404,11 +374,9 @@ class ContainerLootManager(private val plugin: BetterEnd) {
         }
     }
 
-    /** One player's container copies in a city: position + decoded contents. */
     data class PlayerCopy(val pos: ContainerPos, val contents: Array<ItemStack?>)
 
-    /** Lists a player's per-container copies for a city (for the GUI "what they looted" view). */
-    /** Forgets a deleted city's unsaved inventories; its rows already went with the city row. */
+    /** For a deleted city, whose rows the database already removed. */
     fun dropCity(cityId: Int) {
         pendingCopies.keys.removeIf { it.cityId == cityId }
         pendingTemplates.keys.removeIf { it.cityId == cityId }

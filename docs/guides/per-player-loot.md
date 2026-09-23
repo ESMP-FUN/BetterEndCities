@@ -1,71 +1,56 @@
 # Per-Player Loot
 
-Every player who opens an End City chest sees their own private copy of what's inside. The first player through no longer empties the city for everyone else.
+Each player who opens an End City chest gets their own copy of what's inside, so the first player through doesn't empty the city for everyone.
 
-***
-
-## How it works
-
-The first time anyone opens a city chest, Better End Cities remembers what rolled into it. Every player who opens that chest afterwards gets their own copy of it.
-
-Your copy is yours. Take from it, add to it, leave things in it. No other player sees your changes, and you can't take from theirs.
-
-Chests stay chests, with the normal look, sound and opening animation.
+The first time a city chest is opened, its loot is rolled once. Every player then gets their own copy of that roll. What a player takes from or leaves in their copy only affects their copy.
 
 ***
 
 ## When loot comes back
 
-This is the part worth understanding, because nothing runs in the background waiting for a clock.
+Set `loot.refresh-hours` (default `12`, `0` = never).
 
-Each city works on its own:
+Each city runs its own countdown:
 
-1. The first player to loot a city that isn't already counting down **starts the countdown** for that city
-2. While it's counting down, every player who opens a chest gets their own copy
-3. Once the time is up, **the next player to arrive** triggers the refresh. All copies are cleared and the countdown starts again
+1. The first player to loot the city starts its countdown.
+2. Until it runs out, every player keeps their own copy.
+3. After it runs out, the next player to open a chest clears everyone's copies and starts a new countdown.
 
-So loot comes back because a player turned up, not because a timer went off somewhere.
-
-```yaml
-loot:
-  refresh-hours: 12    # 0 = never refresh
-```
-
-### Why it works that way
-
-* **Nothing happens all at once.** A hundred cities don't all refresh at midnight. Each one is on its own clock, started by its own first visitor.
-* **Cities nobody visits cost nothing.** A city no one has been to in a month does no work at all.
-* **No background scanning.** Your server isn't checking a list of cities every few seconds.
-
-The trade-off: a city's loot doesn't come back at the exact moment the time is up, but on the next visit after that. For loot that's the right behaviour anyway, since refreshing a city nobody is standing in achieves nothing.
-
-### Choosing a time
+Loot comes back on the first visit after the time is up, not at the exact moment. Cities don't all refresh at once, and a city nobody visits does no work.
 
 | Value | How it feels |
 |---|---|
-| `6` to `12` | Cities are a regular thing to go and do. Good for smaller or busier servers |
-| `24` to `72` | Cities are a roughly weekly activity |
-| `168` | Once a week. Cities stay special |
-| `0` | Never. Each player gets exactly one copy of each city, forever |
-
-`0` is worth considering if you want the End to be finite. Everyone gets a fair first run, and that's it.
+| `6` to `12` | Cities are a regular activity |
+| `24` to `72` | Roughly weekly |
+| `168` | Once a week |
+| `0` | Never. Each player loots each chest once |
 
 ***
 
 ## What counts as city loot
 
-Only chests that **came with the city** are treated as city loot. The plugin knows the city's exact shape, so this is precise.
+Only containers that came with the city get per-player copies.
 
-* **The city's own chests, barrels and other containers** get per-player copies
-* **A chest a player places inside the city** stays completely normal, shared and untouched
-
-That difference matters. Players can build a base inside an End City and use their own storage as usual, without it turning into per-player copies or being wiped when the city refreshes.
+* **The city's own chests** get copies
+* **Chests players place** stay normal and shared, even inside a tower
+* **A chest holding items but no unopened loot** stays normal too. On worlds played before the plugin was installed, that's a player's own storage
+* **City chests looted before the plugin was installed** get fresh End City loot for each player
 
 {% hint style="info" %}
-**Hoppers can't reach city chests.** Moving items into or out of a city chest with a hopper is blocked, so nobody can quietly drain the loot everyone else is about to get a copy of.
-
-Hoppers attached to a chest a **player placed** inside a city work exactly as normal. The plugin tells the two apart by a marker written when the block is placed, not by where it is.
+**Hoppers can't reach city chests,** so nobody can drain the loot everyone else is about to get. Hoppers on a chest a player placed work as normal.
 {% endhint %}
+
+***
+
+## Changing what a chest gives
+
+Staff with `betterend.admin` can edit what every player's first copy of a chest starts with:
+
+1. Sneak and right-click the city chest. The **Loot Template (shared)** screen opens.
+2. Add, remove or change items.
+3. Close it. The change applies to every player's next fresh copy, and stays through resets.
+
+Copies players already have aren't changed. `/betterend reset <id>` or a refresh gives everyone the new contents.
 
 ***
 
@@ -76,7 +61,7 @@ loot:
   enabled: false
 ```
 
-Chests go back to normal, shared and first-come-first-served. The elytra frames are separate and keep working.
+City chests go back to vanilla: shared, first come first served. Elytra frames keep working.
 
 ***
 
@@ -84,19 +69,15 @@ Chests go back to normal, shared and first-come-first-served. The elytra frames 
 
 | Command | What it does |
 |---|---|
-| `/betterend reset <id>` | Clear everyone's copies **and** put the blocks back, a full reset |
-| `/betterend resetloot <id> <player>` | Clear one player's copies for that city, so they can loot it fresh |
-| `/betterend info <id>` | Show where the city is in its countdown |
-
-`resetloot` is the precise one. Good for making it up to a player after a bug, or for an event, without resetting the city for everyone.
+| `/betterend reset <id>` | Clear everyone's copies, and put the blocks back if a copy of the city is saved |
+| `/betterend resetloot <id> <player>` | Clear one player's copies in that city |
+| `/betterend info <id>` | Show how long ago the city's countdown started |
 
 ***
 
-## How this interacts with elytra claims
+## With elytra claims
 
-If `elytra.claim-mode` is `per-refresh`, elytra claims come back **with the loot**. A refresh then reopens the chests and the ship's elytra at the same time.
-
-With `per-ship` or `global` the two are separate. Loot comes back on its own timer, and elytra claims follow their own rule.
+With `elytra.claim-mode: per-refresh`, claims come back together with the loot. With `per-ship` or `global` they are separate.
 
 ***
 

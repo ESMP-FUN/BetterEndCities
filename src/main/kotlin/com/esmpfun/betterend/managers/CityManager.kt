@@ -10,26 +10,16 @@ import java.sql.Statement
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
-/**
- * Owns the in-memory city cache and all `cities`/`city_pieces` SQL. A server
- * has at most a handful of registered End Cities, so the cache is fully
- * preloaded with no eviction and spatial lookups are a linear scan.
- */
+/** Every registered city, fully cached; there are few enough that lookups are a linear scan. */
 class CityManager(private val plugin: BetterEnd) {
 
     private val cache = ConcurrentHashMap<Int, EndCity>()
 
-    /**
-     * Per-city loot-cycle start (epoch ms; 0 = no active cycle). A cycle is a
-     * lazily-evaluated per-city refresh window: the first player to loot a city
-     * with no active (or an expired) cycle starts a new one, which clears
-     * everyone's per-player copies so the city's loot is fresh again. No
-     * scheduler - the timer is only ever checked on a container open - so
-     * cities refresh staggered by when each was first looted, never all at once.
-     */
+    // Loot cycle start per city, epoch ms. Only checked when a chest opens, so
+    // there is no timer and cities refresh staggered by their first looting.
     private val cycleStarts = ConcurrentHashMap<Int, AtomicLong>()
 
-    /** Loads every city (with its pieces) into the cache. Call once at startup. */
+    /** Call once at startup. */
     suspend fun preload() = withContext(Dispatchers.IO) {
         cache.clear()
         cycleStarts.clear()
@@ -87,7 +77,6 @@ class CityManager(private val plugin: BetterEnd) {
         return out
     }
 
-    /** Whether a city with this origin already exists (dedup guard for discovery). */
     suspend fun existsAt(world: String, origin: Triple<Int, Int, Int>): Boolean =
         withContext(Dispatchers.IO) {
             cache.values.any { it.world == world && it.origin == origin } || run {
@@ -103,11 +92,7 @@ class CityManager(private val plugin: BetterEnd) {
             }
         }
 
-    /**
-     * Persists a newly-discovered city and its pieces, caches it, and returns
-     * it - or null if a row with this origin already exists (UNIQUE collision,
-     * e.g. a concurrent discovery). Idempotent against double-fire.
-     */
+    /** Null when a city with this origin already exists, or the write failed. */
     suspend fun registerCity(
         world: String,
         region: IntBox,
@@ -155,19 +140,14 @@ class CityManager(private val plugin: BetterEnd) {
                 }
             }
         } catch (e: Exception) {
-            // Likely a UNIQUE collision from a concurrent discovery - treat as already-registered.
             plugin.logger.warning("[CityManager] registerCity failed for $world @ $origin: ${e.message}")
             null
         }
     }
 
     /**
-     * Atomically decides whether THIS call should start a new loot cycle for
-     * [cityId]: true when there's no active cycle or the current one is older
-     * than [refreshMs]. Exactly one concurrent caller wins (CAS), so only one
-     * clears the city's copies. The winner should call
-     * [ContainerLootManager.clearCity] and [persistCycleStart]. Synchronous +
-     * thread-safe; [refreshMs] <= 0 disables refresh entirely (always false).
+     * True for exactly one caller once the cycle is over [refreshMs] old; that
+     * caller clears the copies and persists. [refreshMs] <= 0 never refreshes.
      */
     fun beginCycleIfDue(cityId: Int, refreshMs: Long): Boolean {
         if (refreshMs <= 0L) return false
@@ -175,27 +155,19 @@ class CityManager(private val plugin: BetterEnd) {
         while (true) {
             val cur = al.get()
             val now = System.currentTimeMillis()
-            if (cur != 0L && now - cur < refreshMs) return false // active cycle, not due
-            if (al.compareAndSet(cur, now)) return true          // we started the new cycle
-            // lost the race - another thread advanced it; re-read and re-check
+            if (cur != 0L && now - cur < refreshMs) return false
+            if (al.compareAndSet(cur, now)) return true
         }
     }
 
-    /**
-     * The current loot-cycle start for [cityId] (epoch ms; 0 = none). The
-     * per-refresh elytra claim mode compares a claim's timestamp against this.
-     */
+    /** Epoch ms, 0 when no cycle has started. */
     fun cycleStart(cityId: Int): Long = cycleStarts[cityId]?.get() ?: 0L
 
-    /**
-     * Force-starts a fresh loot cycle NOW (admin reset path), regardless of the
-     * refresh window. Callers should also clear per-player copies + persist.
-     */
+    /** Starts a cycle now; the caller clears the copies and persists. */
     fun forceNewCycle(cityId: Int) {
         cycleStarts.getOrPut(cityId) { AtomicLong(0L) }.set(System.currentTimeMillis())
     }
 
-    /** Persists the current in-memory cycle start for [cityId] to the DB. */
     suspend fun persistCycleStart(cityId: Int) = withContext(Dispatchers.IO) {
         val value = cycleStarts[cityId]?.get() ?: return@withContext
         try {
@@ -211,7 +183,6 @@ class CityManager(private val plugin: BetterEnd) {
         }
     }
 
-    /** Records a reset timestamp on a city (DB + cache). */
     suspend fun setLastReset(id: Int, at: Long) = withContext(Dispatchers.IO) {
         if (!cache.containsKey(id)) return@withContext
         try {
@@ -228,12 +199,6 @@ class CityManager(private val plugin: BetterEnd) {
         }
     }
 
-    /**
-     * Marks a city as (not) containing a ship (DB + cache). Set true when the
-     * ship's unique dragon-head block is seen during snapshot capture, or when
-     * its elytra frame is first identified. Never flips back to false
-     * automatically - a harvested dragon head doesn't un-ship the city.
-     */
     suspend fun setHasShip(id: Int, hasShip: Boolean) = withContext(Dispatchers.IO) {
         val city = cache[id] ?: return@withContext
         if (city.hasShip == hasShip) return@withContext
@@ -251,7 +216,7 @@ class CityManager(private val plugin: BetterEnd) {
         }
     }
 
-    /** Remembers where the ship is, the first time it's seen. Also marks the city as having one. */
+    /** Only the first position counts; also marks the city as having a ship. */
     suspend fun setShipAnchor(id: Int, x: Int, y: Int, z: Int) = withContext(Dispatchers.IO) {
         val city = cache[id] ?: return@withContext
         if (city.shipAnchor != null) return@withContext
@@ -269,7 +234,6 @@ class CityManager(private val plugin: BetterEnd) {
         }
     }
 
-    /** Marks the ship's dragon head as taken for good (DB + cache). */
     suspend fun setHeadTaken(id: Int) = withContext(Dispatchers.IO) {
         val city = cache[id] ?: return@withContext
         if (city.headTaken) return@withContext
@@ -286,7 +250,6 @@ class CityManager(private val plugin: BetterEnd) {
         }
     }
 
-    /** Records the snapshot file name on a city (DB + cache). */
     suspend fun setSnapshotFile(id: Int, fileName: String?) = withContext(Dispatchers.IO) {
         if (!cache.containsKey(id)) return@withContext
         try {
@@ -303,17 +266,15 @@ class CityManager(private val plugin: BetterEnd) {
         }
     }
 
-    /** The city whose region envelope contains [loc], or null. */
     fun getCachedCityAt(loc: Location): EndCity? =
         cache.values.firstOrNull { it.containsInRegion(loc) }
 
-    /** The city whose region envelope, expanded by [pad], contains [loc]. */
     fun getCachedCityInPaddedRegion(loc: Location, pad: Int): EndCity? =
         cache.values.firstOrNull { it.containsInPaddedRegion(loc, pad) }
 
     fun byId(id: Int): EndCity? = cache[id]
 
-    /** All cached cities (read-only snapshot). */
+    /** A copy, safe to iterate. */
     fun all(): Collection<EndCity> = cache.values.toList()
 
     suspend fun deleteCity(id: Int): Boolean = withContext(Dispatchers.IO) {

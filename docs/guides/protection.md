@@ -1,88 +1,64 @@
 # Protection
 
-End Cities protect themselves from griefing, without fencing players out of the island they're on.
+Stops players breaking, building in or blowing up End Cities, while the empty space between towers stays free to build in.
+
+Each tower, bridge and the ship is protected on its own, by its exact shape, instead of one big box around the city. Every block inside is protected, whatever it is.
 
 ***
 
-## Each tower is protected on its own
+## Settings
 
-This is the design decision that matters.
-
-Better End Cities doesn't draw one big box around a city. It protects **each part of the city separately**: every tower, every bridge, and the ship. It knows their exact shapes, because it reads them from the world itself.
-
-So the towers can't be stripped, but **the empty space between them is still yours to build in**. Players can build on the island, bridge between towers, and set up a base in the gaps, without fighting the plugin.
-
-Drawing one big box would protect a huge cube of mostly empty air and make the whole island read-only. This doesn't.
-
-### Reaching a little further
-
-```yaml
-protection:
-  piece-padding: 3
-```
-
-Protection reaches this many blocks past each tower, to cover the trim and decoration that sits just outside its edges.
-
-`3` is a good default. Raising it starts protecting genuinely empty space between towers. Lowering it leaves decoration breakable.
-
-***
-
-## What's protected
-
-Everything inside a protected part of the city, **whatever the block is**:
-
-| Setting | Default | Stops |
+| Setting | Default | What it does |
 |---|---|---|
-| `protection.enabled` | `true` | Breaking city blocks (the main switch) |
-| `protection.block-place` | `true` | Building inside the city |
-| `protection.block-explosions` | `true` | Creepers, TNT, and other explosions |
+| `protection.enabled` | `true` | The main switch. Off: cities can be broken freely |
+| `protection.scope` | `whole-city` | `whole-city`, or `ship-only` for only the ship and the city's loot chests |
+| `protection.dragon-head-takeable` | `false` | Players may take the ship's dragon head once |
+| `protection.piece-padding` | `3` | How many blocks protection reaches past each tower's walls |
+| `protection.block-place` | `true` | Also stop building inside, including water and lava buckets |
+| `protection.block-explosions` | `true` | Also stop creepers, TNT and other explosions |
+| `protection.notify-denied` | `true` | Tell the player why, just above their hotbar |
 
-The elytra item frame is protected separately and always, as part of the [claim system](elytra-claims.md#whats-protected).
-
-{% hint style="info" %}
-**"Whatever the block is" is deliberate.** There's no list of protected blocks to keep up to date. If it's part of the city, it's protected. That covers purpur, end stone bricks, chests, shulkers, banners, and anything a future Minecraft update adds.
-{% endhint %}
-
-### Cushions
-
-Minecraft 26.3 added cushions, and a cushion isn't a block. It's closer to a painting, so none of the above sees it, and without special handling a city nobody can build in could still be carpeted in cushions.
-
-The **`-mc263` download** handles them: a cushion can't be placed inside a city, taken, blown up or knocked out by a mob. Placing follows your "stop players building inside" setting and removing follows the main protection switch, so there's nothing extra to configure. Staff with `betterend.bypass.protection` can still move one.
-
-Cushions the game itself clears away, when one gets covered over or the block holding it up disappears, are left alone. Refusing those would strand a cushion that nothing could then remove.
-
-{% hint style="info" %}
-On the **`-mc26` download** cushions aren't protected, because it's built for 26.1 and 26.2 where they don't exist. If you're on 26.3, use `-mc263`.
-{% endhint %}
+Pistons, withers and falling blocks such as sand and anvils can't change a protected city either. The ship's elytra frame is always protected, as part of [elytra claims](elytra-claims.md#whats-protected).
 
 ***
 
-## Telling players why
+## Only protect the ship
 
-```yaml
-protection:
-  notify-denied: true
-```
+Set `protection.scope: ship-only` to leave towers and bridges open. The ship stays protected, and so do the city's own loot chests, so their loot can't be lost for good.
 
-When a break or a build is blocked, a short message appears **just above the player's hotbar** instead of nothing happening at all. Silent failures turn into support tickets. A one-line explanation doesn't.
+Pair it with `snapshot.auto-reset-on-refresh: true` so the towers are rebuilt each time the loot comes back. See [Saved Copies and Resets](snapshots-and-resets.md).
 
-It goes above the hotbar rather than in chat on purpose. A player mining along a wall would otherwise fill their own chat with the same message.
+## Takeable dragon head
+
+With `protection.dragon-head-takeable: true`, a player can break the ship's dragon head and keep it. Once taken, resetting the city never puts that head back.
+
+## Reach past each tower
+
+`protection.piece-padding` covers the trim that sits just outside a tower's edges. `3` fits vanilla cities. Higher starts protecting empty space nearby; lower leaves trim breakable.
+
+***
+
+## Cushions (Minecraft 26.3)
+
+Cushions aren't blocks, so they need the **`-mc263` download**. With it, a cushion can't be placed in a protected city, taken, blown up or knocked off by a mob. Placing follows `protection.block-place`. Cushions the game removes itself, such as one whose support block is gone, are left alone.
+
+{% hint style="info" %}
+The `-mc26` download doesn't protect cushions. On 26.3, use `-mc263`.
+{% endhint %}
 
 ***
 
 ## Letting staff through
 
-`betterend.bypass.protection` lets a player build and break freely inside cities. **Ops have it by default.**
+`betterend.bypass.protection` lets a player break and build freely in cities. **Ops have it by default.** Give it to a builder rank rather than turning protection off.
 
 {% hint style="warning" %}
-**Testing protection as an op will look broken.** You'll break blocks freely and conclude protection isn't working. Test on a normal account, or take the permission away from yourself:
+**Testing as an op looks like protection is broken.** Use a normal account, or remove the permission from yourself:
 
 ```
 /lp user <you> permission set betterend.bypass.protection false
 ```
 {% endhint %}
-
-For builders who need to work inside cities, give the permission to a staff rank rather than turning protection off.
 
 ***
 
@@ -93,27 +69,21 @@ protection:
   enabled: false
 ```
 
-Cities become fully breakable. Finding cities, per-player loot, elytra claims and saved copies all keep working, because protection is separate from all of them.
-
-Worth considering on anarchy-style servers, where you might still want renewable elytras and per-player loot without the "you can't break that" layer.
+Cities can be broken freely. Finding cities, per-player loot, elytra claims and saved copies keep working.
 
 {% hint style="info" %}
-**Protection off, putting blocks back on** is a sensible pairing: players can destroy a city freely, and it rebuilds itself on the next loot refresh. See [Saved Copies and Resets](snapshots-and-resets.md).
+**Protection off and putting blocks back on** lets players wreck a city and have it rebuilt on the next refresh.
 {% endhint %}
 
 ***
 
-## What it deliberately doesn't do
+## What it doesn't do
 
-Protection is self-contained. Three switches and one distance, and it doesn't talk to anything else:
+* It doesn't read land-claim plugins (Residence, Lands, GriefPrevention)
+* It doesn't read or create WorldGuard regions
+* It doesn't control who can open chests; [per-player loot](per-player-loot.md) handles what's inside
 
-* **It doesn't read land-claim plugins** such as Residence, Lands or GriefPrevention.
-* **It doesn't use WorldGuard**, and neither reads nor creates WorldGuard regions.
-* **It doesn't control who can open chests.** Protection covers blocks. What's *inside* a chest is handled by [per-player loot](per-player-loot.md) instead.
-
-That's the point, not a gap. There's nothing to configure, nothing to keep in step with another plugin, and no behaviour that changes depending on what else you have installed. Protection works the same on every server running it.
-
-If your setup genuinely needs one of these, say so on [Discord](https://discord.gg/qwYcTpHsNC).
+If your server needs one of these, ask on [Discord](https://discord.gg/qwYcTpHsNC).
 
 ***
 

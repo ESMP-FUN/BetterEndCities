@@ -8,34 +8,12 @@ import dev.faststats.bukkit.BukkitContext
 import dev.faststats.data.Metric
 
 /**
- * FastStats integration. Anonymous usage metrics that drive feature
- * prioritization: which database backend servers actually run, elytra
- * claim-mode choice, per-player loot adoption, and fleet city counts.
- *
- * Respect knobs (either disables collection entirely):
- *  - BetterEnd's own `metrics.enabled` in config.yml
- *  - FastStats' global opt-out (`plugins/faststats/config.properties`)
- *
- * The first server start is deliberately silent: FastStats writes its
- * config and submits nothing until the next restart, giving admins a
- * window to set `enabled=false` before any data leaves the box.
- *
- * All metric callables are evaluated by FastStats on its own submission
- * schedule; every supplier below reads cheap in-memory state only.
- *
- * **Error reporting.** On by default (`metrics.error-reporting`). Two paths:
- * `contextAware(classLoader)` auto-captures throwables that escape uncaught
- * and belong to this plugin, and [reportHandled] sends one we caught and
- * recovered from. The second matters most: a discovery pass or a snapshot
- * restore that quietly failed never becomes a ticket otherwise. See
- * [buildErrorTracker] for scope and redaction.
+ * FastStats usage metrics and error reports. Either `metrics.enabled` or the
+ * global FastStats switch turns both off; suppliers read in-memory state only.
  */
 object MetricsService {
 
-    /**
-     * FastStats project token for BetterEnd. A blank value disables
-     * metrics init entirely.
-     */
+    // Blank disables metrics entirely.
     private const val PROJECT_TOKEN: String = "0f6a0acd2f476c81fd3241d567a8c546"
 
     @Volatile
@@ -60,9 +38,7 @@ object MetricsService {
                 .metrics { factory -> registerMetrics(plugin, factory) }
                 .create()
 
-            // ready() must run on the main thread during enable; on Paper it also
-            // installs the server exception handlers. The caller is already inside
-            // scheduler.runTask, so we're on the right thread.
+            // Must run on the main thread during enable; the caller is inside scheduler.runTask.
             ctx.ready()
             context = ctx
             errorTracker = tracker
@@ -89,12 +65,7 @@ object MetricsService {
             })
             .create()
 
-    /**
-     * Reports an exception we caught and recovered from. No-op when error
-     * reporting is off. `operation` is a short fixed label (`city-discovery`,
-     * `snapshot-restore`, ...). `context` values land on the report as-is, so
-     * keep them to counts, buckets and fixed enums, never names or coordinates.
-     */
+    /** Reports a caught error. [context] is sent as-is: counts and fixed labels only, never names or coordinates. */
     fun reportHandled(t: Throwable, operation: String, vararg context: Pair<String, Any?>) {
         val tracker = errorTracker ?: return
         if (t is java.util.concurrent.CancellationException) return
@@ -112,32 +83,10 @@ object MetricsService {
         }
     }
 
-    /**
-     * Builds the error tracker: scoped to this plugin, cancellation noise
-     * filtered out, extra redaction layered on the SDK's built-ins.
-     *
-     * **Scope.** `contextAware(loader)` auto-captures uncaught throwables whose
-     * class loader matches ours. Passing the loader explicitly rather than using
-     * the no-arg overload keeps that unambiguous: another plugin's exception is
-     * never ours to report.
-     *
-     * **Cancellation.** Shutdown cancels `pluginScope`, so cancellation is normal
-     * control flow. The SDK matches ignored types by exact class rather than
-     * `isAssignableFrom`, so registering `CancellationException` alone would miss
-     * kotlinx's `JobCancellationException`; hence the message pattern too.
-     *
-     * **Redaction.** The SDK already strips IP addresses, home-directory paths
-     * (which covers our `jdbc:sqlite:<abs path>` URL), the OS username, and
-     * `user:pass@host` JDBC credentials. Added here: query-string credentials, in
-     * case a driver echoes connection properties back in a message, and player
-     * UUIDs, so "no player data is collected" stays literally true even when a
-     * stack trace happens to carry one.
-     *
-     * **Context.** Plugin and Minecraft version, database type, Folia, and a
-     * city-count band ride on every report. All fixed for the server's lifetime,
-     * none carry player data, and together they let a fix target the setup a
-     * crash actually came from.
-     */
+    // Uncaught errors are only captured when thrown from our class loader. The SDK
+    // matches ignored types exactly, so kotlinx's JobCancellationException needs the
+    // message pattern. On top of the SDK's own redaction: query-string credentials
+    // and player UUIDs.
     private fun buildErrorTracker(plugin: BetterEnd): ErrorTracker {
         val tracker = ErrorTracker.contextAware(MetricsService::class.java.classLoader)
             .ignoreError(java.util.concurrent.CancellationException::class.java)

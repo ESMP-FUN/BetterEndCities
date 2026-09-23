@@ -1,8 +1,6 @@
 # The Settings Menu
 
-Every setting can be changed in-game, through real Minecraft pop-up menus with sliders, switches and buttons. Changes take effect straight away and are written back to the settings file for you.
-
-No resource pack. No fake menu made of chat messages. These are the real thing.
+Change every setting in game, with sliders, switches and buttons. Changes are saved to `config.yml` for you. No resource pack needed.
 
 ***
 
@@ -12,10 +10,10 @@ No resource pack. No fake menu made of chat messages. These are the real thing.
 /betterend
 ```
 
-Or `/betterend menu`, which is the same thing. You need `betterend.admin`, which ops have by default.
+Or `/betterend menu`. You need `betterend.admin` (ops have it).
 
 {% hint style="info" %}
-**In-game only.** Pop-up menus are drawn by the player's game, so the menu can't open from the server console. From the console, use `/betterend list`, `info`, `reset` and the rest instead.
+**In game only.** From the console, use the [commands](../reference/commands.md) instead.
 {% endhint %}
 
 ***
@@ -34,9 +32,7 @@ Or `/betterend menu`, which is the same thing. You need `betterend.admin`, which
 | **Setup Tour** | Run the guided walkthrough again |
 | **Close** | Close without saving |
 
-The menu also shows a line telling you where you stand, either "Claims are currently free." or "A claim currently costs 2 x ender pearl."
-
-Every page has **Back**, **Save**, **Save & Close** and **Close**. Nothing changes until you press one of the Save buttons.
+Every page has **Back**, **Save**, **Save & Close** and **Close**. Nothing changes until you press a Save button.
 
 ***
 
@@ -52,7 +48,7 @@ Every page has **Back**, **Save**, **Save & Close** and **Close**. Nothing chang
 * **Choose Cost Item** - jumps to the item picker
 
 {% hint style="warning" %}
-Opening the cost-item picker from this screen **throws away changes you haven't saved**. Save first, then pick the item.
+Opening the item picker from this page **discards unsaved changes**. Save first.
 {% endhint %}
 
 ## Per-player Loot
@@ -85,7 +81,7 @@ SQLite or MySQL, plus the MySQL address, port, database name, username and passw
 
 ## Updates & Stats
 
-* **When a new version comes out** - off, check quietly, tell staff, let staff download it, or download it by itself for the next restart
+* **When a new version comes out** - off, check quietly, tell staff (who can then download it), or download it by itself for the next restart
 * **Check every (hours)**
 * **Wait before taking a brand-new release**, and **how long to wait**
 * **Send anonymous usage stats** and **send automatic error reports** - see [Metrics and Privacy](../configuration/metrics.md)
@@ -97,20 +93,14 @@ Everything on this page except extra logging takes effect after a restart.
 
 ## Choosing a cost item
 
-**Choose Cost Item** opens your inventory rather than a pop-up menu, because it has to show you your actual items.
+1. Open **Choose Cost Item**. A chest screen opens.
+2. Shift-click an item in your own inventory. It's copied as the cost, not taken.
+3. Press **Save & set amount**. The Elytra Frames page opens; set **Cost** to how many.
 
-Click any item in your inventory and that becomes the cost. This works with:
-
-* Ordinary items
-* Items with custom names, lore or enchantments
-* Custom items from other plugins
-
-The item is stored exactly as it is, so a specifically named, specifically enchanted item stays that exact item.
-
-Then set how many with the slider. **The slider won't go past what that item can stack to**, so 64 for most things, 16 for ender pearls, 1 for a bed. Setting it to `0` makes claims free again.
+Named, enchanted and custom items from other plugins are stored exactly. The amount can't go past what the item stacks to. **Reset to default** sets it back to a shulker shell.
 
 {% hint style="info" %}
-**Running Better Anti-Dupe?** The picker warns you if you choose an item it watches, because charging a watched item overlaps with how it tracks ownership.
+**Running Better Anti-Dupe?** The picker warns you if it watches the item you chose, because nobody could pay with it.
 {% endhint %}
 
 ***
@@ -121,7 +111,7 @@ Then set how many with the slider. **The slider won't go past what that item can
 /betterend setup
 ```
 
-Five screens, roughly two minutes, each with a plain explanation and one or two things to set. You move with **[Back] [Next] [Finish later]**, and **each step saves as you pass it**, so quitting halfway keeps what you've already answered.
+Five screens, each with a short explanation and a few settings. Move with **Back**, **Next** and **Finish later**. Each step saves when you press Next, and `/betterend setup` resumes where you stopped.
 
 The screens, in order:
 
@@ -131,20 +121,20 @@ The screens, in order:
 4. **Protection** - grief protection, whole city or only the ship, and whether to tell players when a break is blocked
 5. **Saved copies and resets** - saving a copy of each city, and putting blocks back
 
-The welcome screen offers **Start the tour**, **Skip, defaults are fine**, or **Close**, which asks again next time.
+The welcome screen offers **Start the tour**, **Skip, defaults are fine**, or **Close**.
 
 {% hint style="info" %}
-**The reminder.** Ops get a one-time nudge when they join, until the tour is finished or skipped. Skipping counts, so it stops either way. The tour really is optional and the defaults are ready to use.
+Ops get a reminder when they join until the tour is finished or skipped.
 {% endhint %}
 
 ***
 
 ## The menu and the settings file
 
-Changes made in the menu are written straight back to `config.yml`, so the two never disagree. You can edit the file directly instead if you prefer. Run `/betterend reload` afterwards so the plugin picks the changes up.
+The menu saves straight to `config.yml`. If you edit the file by hand instead, run `/betterend reload` afterwards.
 
 {% hint style="warning" %}
-**Don't edit the file and use the menu at the same time.** If you have `config.yml` open in an editor while you save from the in-game menu, your editor is holding an old copy and will overwrite the menu's changes when you save it. Reload after editing, and close the file before using the menu.
+**Close `config.yml` in your editor before using the menu,** or saving the file later overwrites the menu's changes.
 {% endhint %}
 
 ***

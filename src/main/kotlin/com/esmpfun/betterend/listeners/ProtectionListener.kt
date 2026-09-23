@@ -27,22 +27,9 @@ import org.bukkit.event.player.PlayerBucketEmptyEvent
 import org.bukkit.persistence.PersistentDataType
 
 /**
- * Griefing protection for registered End Cities - bounds-based per structure
- * piece, NOT palette-based.
- *
- * End cities are built mostly from plain purpur and end stone bricks, so a
- * material allow-list would leave the structure trivially spoofable. Instead
- * a block is protected iff it falls inside a `city_pieces` bounding box
- * (expanded by `protection.piece-padding` to cover edge decoration + a thin
- * shell), regardless of its type. The void *between* the towers stays fully
- * buildable.
- *
- * `protection.scope: ship-only` narrows this to the ship plus the city's own
- * loot containers; towers and bridges are left open (a weekly reset puts them
- * back). With `protection.dragon-head-takeable` the ship's dragon head can be
- * broken once, and resets never restore it.
- *
- * Players with `betterend.bypass.protection` (default op) are exempt.
+ * A block is protected when it lies inside a padded piece box, whatever its
+ * type; a material list would be trivial to spoof with purpur. `ship-only`
+ * narrows this to the ship and the city's own loot containers.
  */
 class ProtectionListener(private val plugin: BetterEnd) : Listener {
 
@@ -62,8 +49,6 @@ class ProtectionListener(private val plugin: BetterEnd) : Listener {
     private fun shipOnly() = plugin.config.getString("protection.scope", "whole-city").equals("ship-only", ignoreCase = true)
     private fun headTakeable() = plugin.config.getBoolean("protection.dragon-head-takeable", false)
 
-    /** The city protecting [block], or null. Fast region reject, then the
-     *  per-piece padded test. */
     private fun protectingCity(block: Block): EndCity? {
         val city = plugin.cityManager.getCachedCityInPaddedRegion(block.location, pad()) ?: return null
         if (!city.inStructurePiece(block.location, pad())) return null
@@ -71,7 +56,7 @@ class ProtectionListener(private val plugin: BetterEnd) : Listener {
         return if (city.inShip(block.location, pad()) || isCityContainer(city, block)) city else null
     }
 
-    /** A loot container that generated with the city. Breaking one would lose its loot for good. */
+    /** Breaking one would lose its loot for good. */
     private fun isCityContainer(city: EndCity, block: Block): Boolean {
         if (block.type !in CONTAINERS || !city.inStructurePiece(block.location)) return false
         val state = block.state as? TileState ?: return false
@@ -94,7 +79,6 @@ class ProtectionListener(private val plugin: BetterEnd) : Listener {
         notifyDenied(event.player, city, event.block)
     }
 
-    /** Remembers a taken ship head so the next reset leaves it gone. */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     fun onHeadTaken(event: BlockBreakEvent) {
         if (!headTakeable() || !plugin.isReady) return
@@ -117,7 +101,7 @@ class ProtectionListener(private val plugin: BetterEnd) : Listener {
         notifyDenied(event.player, city, event.block)
     }
 
-    /** Emptying a bucket places water or lava without any BlockPlaceEvent. */
+    // A bucket places water or lava without a BlockPlaceEvent.
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     fun onBucketEmpty(event: PlayerBucketEmptyEvent) {
         if (!enabled() || !plugin.isReady) return
@@ -129,7 +113,6 @@ class ProtectionListener(private val plugin: BetterEnd) : Listener {
         notifyDenied(event.player, city, event.block)
     }
 
-    /** A piston just outside the city could otherwise push or pull city blocks out of place. */
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     fun onPistonExtend(event: BlockPistonExtendEvent) {
         if (!enabled() || !plugin.isReady) return
@@ -142,12 +125,12 @@ class ProtectionListener(private val plugin: BetterEnd) : Listener {
         if (movesProtected(event.blocks, event.direction)) event.isCancelled = true
     }
 
-    // Both neighbours are checked because the retract event's direction is the piston's facing, not the pull.
+    // Both neighbours, since a retract event's direction is the piston's facing, not the pull.
     private fun movesProtected(blocks: List<Block>, direction: BlockFace): Boolean = blocks.any {
         isProtected(it) || isProtected(it.getRelative(direction)) || isProtected(it.getRelative(direction.oppositeFace))
     }
 
-    /** Withers chewing through walls, falling sand or anvils landing in the city, and similar. */
+    // Withers, and falling sand or anvils landing in the city.
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     fun onEntityChangeBlock(event: EntityChangeBlockEvent) {
         if (!enabled() || !plugin.isReady) return
@@ -171,11 +154,7 @@ class ProtectionListener(private val plugin: BetterEnd) : Listener {
 
     // ── cushions (26.3) ──────────────────────────────────────────────────────
 
-    /**
-     * A cushion is an entity, not a block, so none of the block handlers above
-     * ever see one - without this a city that can't be built in at all could
-     * still be carpeted in cushions.
-     */
+    // A cushion is an entity, so none of the block handlers above see it.
     private fun protectedCushionAt(location: Location): EndCity? {
         val city = plugin.cityManager.getCachedCityInPaddedRegion(location, pad()) ?: return null
         if (!city.inStructurePiece(location, pad())) return null
@@ -194,14 +173,8 @@ class ProtectionListener(private val plugin: BetterEnd) : Listener {
         player?.let { notifyDenied(it, city, event.entity.location.block) }
     }
 
-    /**
-     * Every way a cushion is removed arrives here: taken by hand, blown up,
-     * knocked out by a mob, covered over, or its support block going away.
-     *
-     * Only the first two are refused. OBSTRUCTION and PHYSICS are the game
-     * tidying up after itself, and refusing those would strand a cushion that
-     * nothing could then remove.
-     */
+    // Only taking and explosions are refused. OBSTRUCTION and PHYSICS are the game
+    // clearing a cushion that can't stay; refusing them would strand it.
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     fun onCushionBreak(event: EntityBreakEvent) {
         if (!enabled() || !plugin.isReady) return

@@ -26,25 +26,14 @@ import kotlinx.coroutines.launch
 import org.bukkit.plugin.java.JavaPlugin
 import java.io.File
 
-/**
- * BetterEnd - turns the End into renewable, multiplayer-friendly content:
- * per-player elytras straight from the ship's item frame (no vault block, no
- * datapack), per-player End City loot, grief protection, and snapshot-based
- * structure resets.
- *
- * Standalone plugin. Reuses the proven BetterAncientCities architecture
- * (async-first init, [SchedulerAdapter] Paper/Folia abstraction, per-player
- * container loot, gzip snapshots) by port, not by dependency, plus Mantle's
- * MC26 dialog config approach.
- */
+/** Renewable End Cities: per-player elytras and loot, protection and resets. */
 class BetterEnd : JavaPlugin() {
 
-    /** Flips true once async init completes; gates command/listener execution. */
+    /** True once async init completes; commands and listeners wait for it. */
     @Volatile
     var isReady: Boolean = false
         private set
 
-    /** Paper/Folia scheduler abstraction. */
     lateinit var scheduler: SchedulerAdapter
         private set
 
@@ -68,16 +57,11 @@ class BetterEnd : JavaPlugin() {
 
     private var lootListener: ContainerLootListener? = null
 
-    /** Directory holding per-city snapshot files. */
     val snapshotsDir: File by lazy { File(dataFolder, "snapshots").apply { mkdirs() } }
 
-    // Plugin-wide coroutine scope (SupervisorJob so one failed job doesn't tear
-    // down the rest). Cancelled in onDisable.
     private val pluginJob = SupervisorJob()
 
-    // Catches anything escaping a launchAsync block: logged, and reported to
-    // FastStats when error reporting is on. An uncaught background failure is
-    // exactly the kind of bug nobody files a ticket for.
+    // Uncaught background failures are logged and reported; nobody files a ticket for them.
     private val coroutineErrorHandler = CoroutineExceptionHandler { _, t ->
         if (t !is CancellationException) {
             logger.log(java.util.logging.Level.SEVERE, "Uncaught error in a background task", t)
@@ -86,7 +70,6 @@ class BetterEnd : JavaPlugin() {
     }
     val pluginScope = CoroutineScope(Dispatchers.Default + pluginJob + coroutineErrorHandler)
 
-    /** Launch an async coroutine on the plugin scope. */
     fun launchAsync(block: suspend CoroutineScope.() -> Unit): Job =
         pluginScope.launch(block = block)
 
@@ -96,8 +79,6 @@ class BetterEnd : JavaPlugin() {
 
         logger.info("Better End Cities starting on ${if (scheduler.isFolia) "Folia" else "Paper"}...")
 
-        // Async-first init: heavy setup (DB, caches, discovery sweep) runs off
-        // the main thread; listeners register on the main thread once ready.
         databaseManager = DatabaseManager(this)
         cityManager = CityManager(this)
         discoveryManager = CityDiscoveryManager(this)
@@ -105,14 +86,8 @@ class BetterEnd : JavaPlugin() {
         elytraClaimManager = ElytraClaimManager(this)
         snapshotManager = SnapshotManager(this)
 
-        // Commands MUST be registered synchronously inside onEnable: Paper backs
-        // registerCommand with a lifecycle event handler, and the lifecycle
-        // manager stops accepting handlers the moment enable returns. Doing this
-        // from a scheduled task throws "Cannot register lifecycle event handlers"
-        // and, because it aborts the rest of that task, leaves isReady false -
-        // which silently disables every listener too. Registered after the
-        // managers above so tab-completion always has them; BeCommand guards on
-        // isReady for anything that needs the database.
+        // Must happen inside onEnable: Paper stops accepting lifecycle handlers
+        // once enable returns, and a throw from a later task would leave isReady false.
         @Suppress("UnstableApiUsage")
         registerCommand("betterend", "Better End Cities admin command & config menu", BeCommand(this))
 
@@ -129,27 +104,17 @@ class BetterEnd : JavaPlugin() {
                     server.pluginManager.registerEvents(ProtectionListener(this@BetterEnd), this@BetterEnd)
                     server.pluginManager.registerEvents(ElytraFrameListener(this@BetterEnd), this@BetterEnd)
                     server.pluginManager.registerEvents(SetupReminderListener(this@BetterEnd), this@BetterEnd)
-                    // Central GUI dispatcher - routes only BaseHolder inventories.
                     server.pluginManager.registerEvents(VcGuiListener(), this@BetterEnd)
 
-                    // Core setup is done - flip the flag BEFORE the optional
-                    // integrations below. Every listener guards on isReady, so a
-                    // throw from an add-on must never leave the plugin inert.
+                    // Set before the optional integrations, so a throw from one can't leave the plugin inert.
                     isReady = true
                     logger.info("Better End Cities ready.")
 
-                    // Update checking (PluginPulse). Config in pluginpulse.yml;
-                    // server owners can override mode/interval via an `update:`
-                    // block in config.yml.
                     runCatching {
                         io.github.darkstarworks.pluginpulse.PluginPulse.bootstrap(this@BetterEnd)
                     }.onFailure { logger.warning("Update checking unavailable: ${it.message}") }
 
-                    // Anonymous usage metrics (FastStats). Opt-out via metrics.enabled
-                    // in config.yml or the global plugins/FastStats/config.yml.
                     logger.info("FastStats Metrics: ${MetricsService.init(this@BetterEnd)}")
-                    // Catch cities in chunks already resident at enable (the live
-                    // ChunkLoadEvent covers everything loaded afterward).
                     discoveryManager.startupSweep()
                 })
             } catch (e: Exception) {

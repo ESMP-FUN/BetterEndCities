@@ -1,80 +1,68 @@
 # Welcome
 
-End Cities are a one-time prize on a multiplayer server. Better End Cities makes them worth visiting again: every player gets their own elytra, their own chest loot, and the city itself is protected and can be put back the way it was.
+Better End Cities makes End Cities worth visiting more than once. Every player gets their own elytra and their own chest loot, and each city is protected and can be put back the way it was.
+
+In vanilla, the first player to reach an End Ship takes the elytra and empties the chests. Other plugins swap the ship's item frame for a vault block and a key item. This one leaves the frame as it is: players punch it like always, and each of them gets an elytra.
+
+Install it and restart. Every End City works from then on, with no per-city setup. `/betterend` opens a settings menu if you want to change anything.
 
 ***
 
-## The problem it solves
+## Features
 
-The first player to reach an End Ship takes *the* elytra. Everyone after them finds an empty frame and gutted chests.
-
-The usual fix is to replace the ship's item frame with a vault block, then make you install a datapack and hand out a key item. Better End Cities leaves the frame alone. The elytra stays exactly where Mojang put it, players punch it exactly like they always have, and every player gets their own.
-
-***
-
-## Drop it in and forget it
-
-There is nothing to set up. Install it, restart, and every End City on your server is renewable, protected, and per-player. No per-city setup, no commands to run, no file to edit.
-
-The settings that exist are few, and every one of them has a default that works. `/betterend` opens a menu if you want to change something. You're not expected to.
-
-***
-
-## What you can do
-
-* **Renewable elytra item frames.** Punch the ship's frame and you get a fresh elytra. The frame, and its elytra, stay there for the next player.
-* **Claim rules you choose.** Once per ship, claimable again after every loot refresh, or once per player for the whole server.
-* **Optional cost.** Free by default, or charge any item, including custom items from other plugins. You pick it from your own inventory in-game.
-* **Cities find themselves.** End Cities register as players travel near them, at their exact size, ships included.
-* **Per-player chest loot.** Every player gets their own copy of a city's chests, on a refresh timer each city runs for itself.
-* **Griefing protection.** Each tower, bridge and the ship are protected individually, so the empty space between them stays buildable.
-* **Saved copies.** A copy of every city is kept the moment it's found, so you can put it back whenever you like.
-* **In-game settings menu.** `/betterend` opens pop-up menus with sliders and switches. No settings file to hunt through.
-* **Guided setup.** `/betterend setup`, five screens, about two minutes.
-* **Anti-Dupe friendly.** With Better Anti-Dupe installed, claimed elytras are marked as genuine so they never look like copies.
+* **Renewable elytra frames.** Punch the ship's frame for an elytra; the frame keeps its elytra for the next player
+* **Claim rules.** Once per ship, again after every loot refresh, or once per player in total
+* **Optional price.** Any item, including items from other plugins, and XP levels, which can double with each elytra bought
+* **Cities find themselves** as players travel near them, ships included
+* **Per-player chest loot**, refreshed on a timer each city runs on its own
+* **Protection** for each tower, bridge and the ship, or only the ship. The space between towers stays buildable
+* **Saved copies** of every city, so `/betterend reset` can put it back
+* **Settings menu** in game, with sliders and switches for every setting
+* **Guided setup** with `/betterend setup`
+* **Better Anti-Dupe support.** Claimed elytras are marked as the claimer's own
 
 ***
 
 ## Requirements
 
-* **Minecraft 26.1+**
-* **Paper, Folia, or Purpur**
-* **Java 25+**
+* **Minecraft 26.1 or newer**
+* **Paper, Folia or Purpur**
+* **Java 25 or newer**
 * *Optional:* [Better Anti-Dupe](https://github.com/ESMP-FUN/BetterAntiDupe), MySQL
 
 {% hint style="warning" %}
-**Minecraft 26 only.** This plugin uses pop-up menus and world information that don't exist in 1.21. There is no 1.21 build, and the plugin will not start on one.
+**Minecraft 26 only.** There is no 1.21 version, and this one won't start on 1.21.
 {% endhint %}
 
-Nothing else is needed. No datapack, no library plugin, no resource pack.
+No datapack, resource pack or other plugin is needed.
 
 ***
 
 ## Where to go next
 
-[installation.md](getting-started/installation.md) - Drop the jar in, start the server. Under two minutes.
+[installation.md](getting-started/installation.md) - install the jar and check it's running.
 
-[quick-start.md](getting-started/quick-start.md) - **Start here.** There is genuinely no setup. This page explains what's already running and how to check it.
+[quick-start.md](getting-started/quick-start.md) - see each feature working in game.
 
-[config-menu.md](getting-started/config-menu.md) - Change any setting in-game, without opening a file.
+[config-menu.md](getting-started/config-menu.md) - change any setting from the in-game menu.
 
-[basic-configuration.md](getting-started/basic-configuration.md) - The handful of settings most servers actually change.
+[basic-configuration.md](getting-started/basic-configuration.md) - the few settings most servers change.
 
-[elytra-claims.md](guides/elytra-claims.md) - Claim rules, costs, and how the frame stays vanilla.
+[elytra-claims.md](guides/elytra-claims.md) - claim rules and prices.
 
-[per-player-loot.md](guides/per-player-loot.md) - How the loot refresh timer works.
+[per-player-loot.md](guides/per-player-loot.md) - how loot refreshes.
 
-[troubleshooting.md](troubleshooting.md) - Something not working? Most problems have a known cause. Check here first.
+[troubleshooting.md](troubleshooting.md) - fixes for common problems.
 
 ***
 
 ## Support
 
-* [**GitHub Issues**](https://github.com/ESMP-FUN/BetterEndCities/issues) - bug reports, feature requests
-* [**Discord**](https://discord.gg/qwYcTpHsNC) - community support, announcements
+* [**GitHub Issues**](https://github.com/ESMP-FUN/BetterEndCities/issues) - bug reports and feature requests
+* [**Discord**](https://discord.gg/qwYcTpHsNC) - help and announcements
 * [**GitHub Releases**](https://github.com/ESMP-FUN/BetterEndCities/releases) - downloads and release notes
 
-Source-available, non-commercial (see [LICENSE](https://github.com/ESMP-FUN/BetterEndCities/blob/main/LICENSE)). Made with Kotlin by [darkstarworks](https://github.com/darkstarworks).
+Source-available, non-commercial (see [LICENSE](https://github.com/ESMP-FUN/BetterEndCities/blob/main/LICENSE)). Made by [darkstarworks](https://github.com/darkstarworks).
 
 ***
 

@@ -8,11 +8,7 @@ import org.bukkit.event.player.PlayerJoinEvent
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
-/**
- * One gentle nudge per session: while the setup tour has never been completed
- * (or skipped), admins get a clickable hint on join. Finishing OR skipping
- * the tour sets `setup.completed` and this goes quiet forever.
- */
+/** Until the setup tour is finished or skipped, admins get one clickable reminder per session. */
 class SetupReminderListener(private val plugin: BetterEnd) : Listener {
 
     private val remindedThisSession = ConcurrentHashMap.newKeySet<UUID>()
@@ -24,7 +20,6 @@ class SetupReminderListener(private val plugin: BetterEnd) : Listener {
         if (!player.hasPermission("betterend.admin")) return
         if (!remindedThisSession.add(player.uniqueId)) return
 
-        // Delayed a moment so it lands after the join-message noise.
         plugin.scheduler.runAtEntityLater(player, Runnable {
             if (!player.isOnline || plugin.config.getBoolean("setup.completed", false)) return@Runnable
             player.sendMessage(

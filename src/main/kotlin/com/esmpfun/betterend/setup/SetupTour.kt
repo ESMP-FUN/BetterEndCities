@@ -18,25 +18,14 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * `/betterend setup` - a guided, zero-jargon tour through every setting, one
- * dialog screen at a time (the BetterTrialChambers `/trial setup` idea).
- *
- * Each step is a small dialog: a plain-English explanation, one or two
- * inputs, and **[Back] [Next] [Finish later]**. "Next" saves that step's
- * inputs immediately (config.set + saveConfig - everything reads live), so
- * quitting halfway loses nothing. Finishing (or skipping on the welcome
- * screen) sets `setup.completed`, which stops the op join reminder.
- *
- * Progress is per-player and in-memory; `/betterend setup` after a restart
- * simply starts from the top with every input pre-filled from the current
- * config - re-walking is harmless.
+ * `/betterend setup`: one small dialog per step, each saved on Next.
+ * Progress is kept in memory only; finishing or skipping sets `setup.completed`.
  */
 @Suppress("UnstableApiUsage")
 object SetupTour {
 
     private val progress = ConcurrentHashMap<UUID, Int>()
 
-    /** One tour screen: title, explanation, inputs and a per-step save. */
     private class Step(
         val title: String,
         val body: List<String>,
@@ -169,7 +158,7 @@ object SetupTour {
         ),
     )
 
-    /** Opens the welcome screen (or resumes where this player left off). */
+    /** Resumes where this player left off, or opens the welcome screen. */
     fun start(plugin: BetterEnd, player: Player) {
         val at = progress[player.uniqueId]
         if (at != null && at in steps.indices) openStep(plugin, player, at) else openWelcome(plugin, player)
@@ -200,7 +189,6 @@ object SetupTour {
                     "Everything already works with the defaults.",
                 ).map { DialogBody.plainMessage(Component.text(it, NamedTextColor.GRAY)) }
             )
-            // See BeDialogs.showSettings for why these three are set explicitly.
             .pause(false)
             .canCloseWithEscape(true)
             .afterAction(DialogBase.DialogAfterAction.NONE)
@@ -251,7 +239,6 @@ object SetupTour {
         )
             .body(step.body.map { DialogBody.plainMessage(Component.text(it, NamedTextColor.GRAY)) })
             .inputs(step.inputs(plugin))
-            // See BeDialogs.showSettings for why these three are set explicitly.
             .pause(false)
             .canCloseWithEscape(true)
             .afterAction(DialogBase.DialogAfterAction.NONE)
@@ -286,7 +273,6 @@ object SetupTour {
                     "Change any of it later with /betterend.",
                 ).map { DialogBody.plainMessage(Component.text(it, NamedTextColor.GRAY)) }
             )
-            // See BeDialogs.showSettings for why these three are set explicitly.
             .pause(false)
             .canCloseWithEscape(true)
             .afterAction(DialogBase.DialogAfterAction.NONE)
