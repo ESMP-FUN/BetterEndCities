@@ -59,7 +59,7 @@ No datapack, resource pack or other plugin is needed.
 ## Support
 
 * [**GitHub Issues**](https://github.com/ESMP-FUN/BetterEndCities/issues) - bug reports and feature requests
-* [**Discord**](https://discord.gg/qwYcTpHsNC) - help and announcements
+* [**Discord**](https://discord.gg/aWMU2JNXex) - help and announcements
 * [**GitHub Releases**](https://github.com/ESMP-FUN/BetterEndCities/releases) - downloads and release notes
 
 Source-available, non-commercial (see [LICENSE](https://github.com/ESMP-FUN/BetterEndCities/blob/main/LICENSE)). Made by [darkstarworks](https://github.com/darkstarworks).

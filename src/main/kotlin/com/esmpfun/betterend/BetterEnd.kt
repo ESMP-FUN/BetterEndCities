@@ -96,6 +96,7 @@ class BetterEnd : JavaPlugin() {
                 databaseManager.initialize()
                 cityManager.preload()
                 elytraClaimManager.preload()
+                containerLootManager.purgeEmptyChestTemplatesOnce()
                 scheduler.runTask(Runnable {
                     server.pluginManager.registerEvents(CityDiscoveryListener(this@BetterEnd), this@BetterEnd)
                     val loot = ContainerLootListener(this@BetterEnd)

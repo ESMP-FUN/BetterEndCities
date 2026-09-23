@@ -123,7 +123,7 @@ Nothing is copied between storage types. See [Storage](configuration/storage.md#
 
 ## Reporting bugs
 
-Use [GitHub Issues](https://github.com/ESMP-FUN/BetterEndCities/issues) or [Discord](https://discord.gg/qwYcTpHsNC), and include:
+Use [GitHub Issues](https://github.com/ESMP-FUN/BetterEndCities/issues) or [Discord](https://discord.gg/aWMU2JNXex), and include:
 
 * The plugin version (the jar name, or `/betterend update status`)
 * The full `/version` output

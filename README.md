@@ -57,6 +57,6 @@ Other elytra plugins swap the ship's item frame for a vault block, then make you
 
 ## Links
 
-**[Docs](docs/README.md)** | **[Discord](https://discord.gg/qwYcTpHsNC)** | **[Issues](https://github.com/ESMP-FUN/BetterEndCities/issues)**
+**[Docs](docs/README.md)** | **[Discord](https://discord.gg/aWMU2JNXex)** | **[Issues](https://github.com/ESMP-FUN/BetterEndCities/issues)**
 
 Source-available, non-commercial, see [LICENSE](LICENSE). Contributions welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).

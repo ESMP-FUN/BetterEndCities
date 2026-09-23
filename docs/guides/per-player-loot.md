@@ -32,6 +32,7 @@ Loot comes back on the first visit after the time is up, not at the exact moment
 Only containers that came with the city get per-player copies.
 
 * **The city's own chests** get copies
+* **The ship's brewing stand** gets copies too, so every player finds its two healing potions
 * **Chests players place** stay normal and shared, even inside a tower
 * **A chest holding items but no unopened loot** stays normal too. On worlds played before the plugin was installed, that's a player's own storage
 * **City chests looted before the plugin was installed** get fresh End City loot for each player

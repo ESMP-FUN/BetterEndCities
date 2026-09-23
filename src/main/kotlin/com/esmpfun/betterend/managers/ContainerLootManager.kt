@@ -406,6 +406,80 @@ class ContainerLootManager(private val plugin: BetterEnd) {
         out
     }
 
+    /**
+     * Older versions saved an empty template for chests looted before install.
+     * Deletes those, and the empty copies made from them, once, so each rolls
+     * fresh End City loot on its next open.
+     */
+    suspend fun purgeEmptyChestTemplatesOnce() = withContext(Dispatchers.IO) {
+        plugin.databaseManager.connection.use { conn ->
+            val done = conn.prepareStatement("SELECT 1 FROM be_meta WHERE k = 'empty_templates_rerolled'").use { stmt ->
+                stmt.executeQuery().use { it.next() }
+            }
+            if (done) return@use
+            val empty = mutableListOf<Pair<Int, ContainerPos>>()
+            conn.prepareStatement(
+                "SELECT city_id, x, y, z, contents FROM container_template WHERE material IN ('CHEST', 'TRAPPED_CHEST')"
+            ).use { stmt ->
+                stmt.executeQuery().use { rs ->
+                    while (rs.next()) {
+                        if (isEmptyEncoded(rs.getString("contents"))) {
+                            empty += rs.getInt("city_id") to ContainerPos(rs.getInt("x"), rs.getInt("y"), rs.getInt("z"))
+                        }
+                    }
+                }
+            }
+            conn.autoCommit = false
+            try {
+                conn.prepareStatement("DELETE FROM container_template WHERE city_id = ? AND x = ? AND y = ? AND z = ?").use { del ->
+                    for ((city, pos) in empty) {
+                        del.setInt(1, city); del.setInt(2, pos.x); del.setInt(3, pos.y); del.setInt(4, pos.z)
+                        del.addBatch()
+                    }
+                    del.executeBatch()
+                }
+                conn.prepareStatement(
+                    "SELECT player_uuid, contents FROM player_container_loot WHERE city_id = ? AND x = ? AND y = ? AND z = ?"
+                ).use { sel ->
+                    conn.prepareStatement(
+                        "DELETE FROM player_container_loot WHERE city_id = ? AND x = ? AND y = ? AND z = ? AND player_uuid = ?"
+                    ).use { del ->
+                        for ((city, pos) in empty) {
+                            sel.setInt(1, city); sel.setInt(2, pos.x); sel.setInt(3, pos.y); sel.setInt(4, pos.z)
+                            sel.executeQuery().use { rs ->
+                                while (rs.next()) {
+                                    if (!isEmptyEncoded(rs.getString("contents"))) continue
+                                    del.setInt(1, city); del.setInt(2, pos.x); del.setInt(3, pos.y); del.setInt(4, pos.z)
+                                    del.setString(5, rs.getString("player_uuid"))
+                                    del.addBatch()
+                                }
+                            }
+                        }
+                        del.executeBatch()
+                    }
+                }
+                conn.prepareStatement("INSERT INTO be_meta (k, v) VALUES ('empty_templates_rerolled', '1')").use { it.executeUpdate() }
+                conn.commit()
+            } catch (e: Exception) {
+                conn.rollback()
+                throw e
+            } finally {
+                conn.autoCommit = true
+            }
+            if (empty.isNotEmpty()) plugin.logger.info("[ContainerLoot] ${empty.size} empty chest templates will roll fresh loot on their next open")
+        }
+    }
+
+    // Every slot marked empty, read without building any items.
+    private fun isEmptyEncoded(encoded: String): Boolean = try {
+        DataInputStream(ByteArrayInputStream(Base64.getDecoder().decode(encoded))).use { input ->
+            val size = input.readInt()
+            (0 until size).all { input.readInt() < 0 }
+        }
+    } catch (e: Exception) {
+        false
+    }
+
     // ==== Encoding ====
 
     fun encodeContents(contents: Array<ItemStack?>): String {

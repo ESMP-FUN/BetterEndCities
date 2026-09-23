@@ -59,4 +59,4 @@ Sends a clickable message when a city is found. Click the position to teleport t
 
 * **Per-player loot has no bypass.** Admins get their own copy like everyone else. `/betterend resetloot <id> <player>` gives a player a fresh one. Admins can sneak and right-click a city chest to edit what every copy starts with
 * **Elytra claims have no bypass.** `/betterend clearclaims <id>` reopens a ship
-* Need finer control than three permissions? Ask on [Discord](https://discord.gg/qwYcTpHsNC)
+* Need finer control than three permissions? Ask on [Discord](https://discord.gg/aWMU2JNXex)

@@ -70,7 +70,7 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
     private companion object {
         val ELIGIBLE = setOf(
             Material.CHEST, Material.TRAPPED_CHEST, Material.BARREL,
-            Material.DISPENSER, Material.DROPPER
+            Material.DISPENSER, Material.DROPPER, Material.BREWING_STAND
         )
         val COPY_TITLE: Component = Component.text("End City Loot")
         val TEMPLATE_TITLE: Component = Component.text("Loot Template (shared)")
@@ -99,7 +99,7 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
         val container = state as? Container ?: return
         val inv = container.inventory
         val holder = inv.holder
-        if (!isCityLoot(state, holder, inv)) return
+        if (!isCityLoot(city, state, holder, inv)) return
         val player = event.player
 
         val isAdminEdit = player.isSneaking && player.hasPermission("betterend.admin")
@@ -127,7 +127,7 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
             }
 
             if (isAdminEdit) {
-                openVirtual(player, TemplateHolder(city.id, pos), size, TEMPLATE_TITLE, template)
+                openVirtual(player, TemplateHolder(city.id, pos), size, keyMaterial, TEMPLATE_TITLE, template)
                 player.sendMessage(Component.text("§7Editing the shared loot template. Changes apply to every player's first open."))
             } else {
                 // The first player past the refresh window clears everyone's copies.
@@ -141,7 +141,7 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
                     }
                 }
                 val existing = plugin.containerLootManager.loadContents(city.id, pos, player.uniqueId)
-                openVirtual(player, CopyHolder(city.id, pos), size, COPY_TITLE, existing ?: template)
+                openVirtual(player, CopyHolder(city.id, pos), size, keyMaterial, COPY_TITLE, existing ?: template)
             }
         }
     }
@@ -259,8 +259,11 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
     /**
      * Unrolled loot, or empty after a pre-install looting. Items with no loot
      * table mean a player stocked it; copying that to everyone would dupe them.
+     * The ship's brewing stand is the exception: it generates with its potions
+     * already in it, and it's the only one inside a ship.
      */
-    private fun isCityLoot(state: BlockState, holder: InventoryHolder?, inv: Inventory): Boolean {
+    private fun isCityLoot(city: EndCity, state: BlockState, holder: InventoryHolder?, inv: Inventory): Boolean {
+        if (state.type == Material.BREWING_STAND) return city.inShip(state.location, 0)
         val tables = if (holder is DoubleChest) {
             listOf((holder.leftSide as? Chest)?.lootTable, (holder.rightSide as? Chest)?.lootTable)
         } else {
@@ -273,6 +276,7 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
         player: Player,
         holder: InventoryHolder,
         size: Int,
+        material: Material,
         title: Component,
         contents: Array<ItemStack?>
     ) = kotlinx.coroutines.suspendCancellableCoroutine<Unit> { cont ->
@@ -280,7 +284,11 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
         plugin.scheduler.runAtEntity(player, retired = Runnable { cont.resume(Unit) }, task = Runnable {
             try {
                 if (player.isOnline) {
-                    val virtual = plugin.server.createInventory(holder, size, title)
+                    val virtual = if (material == Material.BREWING_STAND) {
+                        plugin.server.createInventory(holder, org.bukkit.event.inventory.InventoryType.BREWING, title)
+                    } else {
+                        plugin.server.createInventory(holder, size, title)
+                    }
                     when (holder) {
                         is CopyHolder -> holder.backing = virtual
                         is TemplateHolder -> holder.backing = virtual
@@ -319,7 +327,7 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
                                 if ((b.state as? TileState)?.persistentDataContainer
                                         ?.has(playerPlacedKey, PersistentDataType.BYTE) == true) continue
                                 val holder = te.inventory.holder
-                                if (!isCityLoot(te, holder, te.inventory)) continue
+                                if (!isCityLoot(city, te, holder, te.inventory)) continue
                                 val keyBlock = if (holder is DoubleChest) (holder.leftSide as? Chest)?.block ?: b else b
                                 if (holder is DoubleChest && keyBlock != b) continue // the left half covers it
                                 val size = if (holder is DoubleChest) 54 else te.inventory.size
@@ -363,6 +371,6 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
         if (!city.inStructurePiece(block.location)) return false
         val state = block.state as? TileState ?: return false
         if (state.persistentDataContainer.has(playerPlacedKey, PersistentDataType.BYTE)) return false
-        return isCityLoot(state, holder, inv)
+        return isCityLoot(city, state, holder, inv)
     }
 }

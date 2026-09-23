@@ -452,9 +452,9 @@ object BeDialogs {
             Choice("off", "Off: never check"),
             Choice("check-only", "Check quietly (see /betterend update)"),
             Choice("notify", "Tell staff, who can download it"),
-            Choice("download", "Same as telling staff"),
             Choice("auto-stage", "Download it for the next restart by itself"),
         )
+        // "download" behaves exactly like "notify", so it isn't offered and shows as notify.
         val mode = cfg.getString("update.mode", "notify")?.lowercase().let { m -> modes.firstOrNull { it.id == m }?.id } ?: "notify"
         val interval = cfg.getInt("update.check-interval-hours", 6)
         val holdHours = cfg.getInt("update.hold-new-updates-hours", 18)
