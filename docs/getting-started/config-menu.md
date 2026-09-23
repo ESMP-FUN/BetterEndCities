@@ -24,13 +24,19 @@ Or `/betterend menu`, which is the same thing. You need `betterend.admin`, which
 
 | Button | What it opens |
 |---|---|
-| **Elytra Frames** | Claim rules, cost, and the floating note above the frame |
-| **End Cities** | Finding cities, loot refresh, protection and saved copies |
+| **Elytra Frames** | Who can claim, what it costs, the floating note and the shimmer |
 | **Choose Cost Item** | Pick what an elytra costs, straight from your inventory |
+| **Per-player Loot** | Everyone's own chest copies, and how often they refresh |
+| **Protection** | What players can and can't break or build in a city |
+| **Finding Cities & Resets** | Finding cities, worlds to leave alone, saved copies |
+| **Storage** | SQLite or MySQL, and the MySQL login |
+| **Updates & Stats** | Update checks, anonymous stats, error reports, extra logging |
 | **Setup Tour** | Run the guided walkthrough again |
 | **Close** | Close without saving |
 
 The menu also shows a line telling you where you stand, either "Claims are currently free." or "A claim currently costs 2 x ender pearl."
+
+Every page has **Back**, **Save**, **Save & Close** and **Close**. Nothing changes until you press one of the Save buttons.
 
 ***
 
@@ -38,25 +44,54 @@ The menu also shows a line telling you where you stand, either "Claims are curre
 
 * **Feature enabled** - turns renewable frames on or off entirely
 * **Who can claim, how often** - once per ship, on every loot refresh, or once per player ever
-* **Floating note above the frame** - the little label showing the cost, or "Punch to claim"
+* **Cost** - how many of the cost item a claim takes, `0` for none
+* **XP levels per claim** - levels taken on top of the item, `0` for none
+* **Price doubles with each elytra bought** - 10 levels, then 20, then 40. The price drops back once a loot refresh window has passed since each purchase
+* **Floating hint above the frame** - the little label showing the cost, or "Punch to claim"
+* **Shimmer around the frame** - a faint particle effect when a player is near, so it gets noticed
 * **Choose Cost Item** - jumps to the item picker
 
 {% hint style="warning" %}
 Opening the cost-item picker from this screen **throws away changes you haven't saved**. Save first, then pick the item.
 {% endhint %}
 
-## End Cities
+## Per-player Loot
 
-Everything about the cities themselves, on one screen:
+* **Per-player chest loot** - the main on/off switch
+* **Refresh window (hours, 0 = never)** - a slider from 0 to 168, which is one week
+
+## Protection
+
+* **Grief protection** - the main on/off switch
+* **What is protected** - the whole city, or only the ship and the city's loot chests
+* **Players may take the ship's dragon head** - once taken, resets never put it back
+* **Reach past each tower** - how many blocks protection extends past a tower's walls. `3` fits vanilla cities
+* **Also stop players building inside**
+* **Also protect from explosions**
+* **Tell players why their break or build was stopped** - the message just above the hotbar
+
+## Finding Cities & Resets
 
 * **Register new End Cities automatically**
-* **How long before loot comes back (hours, 0 = never)** - a slider from 0 to 168, which is one week
-* **Grief protection** - the main on/off switch
-* **Also stop players building inside**
-* **Protect from explosions**
-* **Tell players when a break is blocked** - the message just above the hotbar
+* **Also check areas already loaded at startup**
+* **Worlds to leave alone** - world names separated by commas, for example `world_the_end_2, event_end`
 * **Save a copy of each city when it's found**
-* **Put the blocks back on every loot refresh** - off by default
+* **Put blocks back on every loot refresh** - off by default
+* **Largest saved copy** - a safety limit, in millions of blocks. You should never need to change it
+
+## Storage
+
+SQLite or MySQL, plus the MySQL address, port, database name, username and password. **These take effect after a restart.** The password box always starts empty so it's never shown on screen; leave it empty to keep the saved one. Switching storage type starts from an empty database, nothing is copied across.
+
+## Updates & Stats
+
+* **When a new version comes out** - off, check quietly, tell staff, let staff download it, or download it by itself for the next restart
+* **Check every (hours)**
+* **Wait before taking a brand-new release**, and **how long to wait**
+* **Send anonymous usage stats** and **send automatic error reports** - see [Metrics and Privacy](../configuration/metrics.md)
+* **Extra logging** - noisy, for chasing a problem
+
+Everything on this page except extra logging takes effect after a restart.
 
 ***
 
@@ -91,9 +126,9 @@ Five screens, roughly two minutes, each with a plain explanation and one or two 
 The screens, in order:
 
 1. **Elytra frames** - switch them on, and choose how often a player can claim
-2. **Elytra cost** - what a claim costs, and the floating note
+2. **Elytra cost** - what a claim costs in items and XP levels, and the floating note
 3. **Per-player loot** - switch it on, and how long before loot comes back
-4. **Protection** - grief protection, and whether to tell players when a break is blocked
+4. **Protection** - grief protection, whole city or only the ship, and whether to tell players when a break is blocked
 5. **Saved copies and resets** - saving a copy of each city, and putting blocks back
 
 The welcome screen offers **Start the tour**, **Skip, defaults are fine**, or **Close**, which asks again next time.

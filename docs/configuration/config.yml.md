@@ -183,18 +183,22 @@ metrics:
 
 ## update *(optional, not in the default file)*
 
-Add this only if you want to change how update checking behaves. It overrides what the plugin ships with.
+Add this only if you want to change how update checking behaves. It overrides what the plugin ships with. The **Updates & Stats** page of `/betterend` writes it for you. Changes here take effect after a restart.
 
 ```yaml
 update:
   mode: notify
   check-interval-hours: 6
+  hold-new-updates: false
+  hold-new-updates-hours: 18
 ```
 
 | Setting | Default | What it does |
 |---|---|---|
 | `mode` | `notify` | `off`, `check-only`, `notify` (tells admins, downloads nothing), `download`, or `auto-stage` |
 | `check-interval-hours` | `6` | How often to check |
+| `hold-new-updates` | `false` | Leave a brand-new release alone for a while, so one that turns out broken and gets fixed within hours is never picked up |
+| `hold-new-updates-hours` | `18` | How long to wait when the above is on |
 
 `download` and `auto-stage` fetch updates and put them in place for the next restart. Nothing is ever swapped out underneath a running server.
 
