@@ -1,7 +1,7 @@
 package com.esmpfun.betterend.gui.framework
 
 /**
- * Pagination utility — fills a contiguous slot range with a slice of a
+ * Pagination utility - fills a contiguous slot range with a slice of a
  * data source.
  *
  * Composable; you instantiate one as a field on your [VcGui] subclass:
@@ -9,7 +9,7 @@ package com.esmpfun.betterend.gui.framework
  * ```
  * private val pagination = Paginated(
  *     source = { plugin.chamberManager.getAllChambers() },
- *     render = { chamber -> VcGuiItem.of(Material.LODESTONE, "<gold>${chamber.name}") { open detail… } },
+ *     render = { chamber -> VcGuiItem.of(Material.LODESTONE, "<gold>${chamber.name}") { open detail... } },
  *     slotRange = 0..44,  // first 5 rows
  * )
  *
@@ -22,7 +22,7 @@ package com.esmpfun.betterend.gui.framework
  * Navigation: call [next] / [prev] from "next-page" / "prev-page" button
  * click handlers, then call [VcGui.update].
  *
- * @property source Computed each time [applyTo] is called — supports live
+ * @property source Computed each time [applyTo] is called - supports live
  *   data without explicit invalidation.
  * @property render Converts a source element into a [VcGuiItem].
  * @property slotRange Contiguous slot range to fill. Default 0..44 (first

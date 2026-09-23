@@ -13,15 +13,15 @@ import org.bukkit.Material
 import org.bukkit.inventory.ItemStack
 
 /**
- * VcGui picker for the elytra claim **cost item** — the one setting a Dialog
+ * VcGui picker for the elytra claim **cost item** - the one setting a Dialog
  * can't express, because it's a real [ItemStack]: any item (custom/NBT items
  * from other plugins included).
  *
  * - **Shift-click any item in your own inventory** to stamp it as the cost
- *   item (the item is NOT consumed — stamp semantics via
+ *   item (the item is NOT consumed - stamp semantics via
  *   `acceptsBottomShiftClick`).
  * - The AMOUNT is set on the slider in the Elytra dialog, which clamps
- *   itself to this item's max stack size — so the two screens can't
+ *   itself to this item's max stack size - so the two screens can't
  *   contradict each other.
  * - Save persists the item and returns to the Elytra dialog with the slider
  *   already re-scaled.
@@ -39,7 +39,7 @@ class CurrencyPickerView(private val plugin: BetterEnd) : VcGui(
     init { layout() }
 
     private fun layout() {
-        // The cost-item slot — stamp target.
+        // The cost-item slot - stamp target.
         set(
             13,
             VcGuiItem(
@@ -50,7 +50,7 @@ class CurrencyPickerView(private val plugin: BetterEnd) : VcGui(
                         ctx.currentItem?.takeIf { !it.type.isAir }?.let {
                             draft = it.clone().apply { amount = 1 }
                             // An AntiDupePro ownership tag on the cost item would
-                            // make it match only the stamping admin's own copies —
+                            // make it match only the stamping admin's own copies -
                             // unpayable for everyone else (matching is isSimilar).
                             AntiDupeCompat.stripOwnership(draft)
                         }
@@ -94,12 +94,12 @@ class CurrencyPickerView(private val plugin: BetterEnd) : VcGui(
                     )
                     if (AntiDupeCompat.isTrackedMaterial(draft.type)) {
                         // Every player's copy of a tracked item carries their own
-                        // ownership tag, so it can never match this cost item —
+                        // ownership tag, so it can never match this cost item -
                         // nobody could pay. Warn loudly.
                         ctx.player.sendMessage(
                             Component.text(
-                                "Warning: AntiDupePro tracks ${draft.type.name} — players' copies get " +
-                                    "per-player ownership tags and won't match this cost item. Pick an untracked item.",
+                                "Warning: AntiDupePro tracks ${draft.type.name}. Every player's copy is marked as theirs, " +
+                                    "so it won't count as this cost item and nobody could pay. Pick an item AntiDupePro doesn't track.",
                                 NamedTextColor.RED,
                             ),
                         )

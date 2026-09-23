@@ -6,7 +6,7 @@ import org.bukkit.inventory.InventoryHolder
 /**
  * Marker interface that ties a Bukkit [Inventory] back to its owning
  * [VcGui] instance. Every [VcGui.open] creates an `Inventory` whose
- * `holder` is one of these — the central [VcGuiListener] uses that
+ * `holder` is one of these - the central [VcGuiListener] uses that
  * holder to find the GUI and dispatch the click.
  *
  * Each concrete `VcGui` subclass declares its own `Holder` data class
@@ -17,7 +17,7 @@ import org.bukkit.inventory.InventoryHolder
  *
  * - We can't make this sealed across subclasses defined in arbitrary
  *   files (Kotlin's sealed class checks compile-unit, and our GUIs live
- *   beside one another in the same module — but new sibling premium
+ *   beside one another in the same module - but new sibling premium
  *   modules would need to define their own GUIs, which a sealed
  *   interface across modules forbids). Keep it open; the dispatcher
  *   uses `is BaseHolder` for the framework-wide invariant check.

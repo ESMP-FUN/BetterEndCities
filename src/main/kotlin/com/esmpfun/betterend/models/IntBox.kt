@@ -23,16 +23,13 @@ data class IntBox(
 
     companion object {
         /**
-         * Converts a Bukkit [BoundingBox] (as returned by
-         * `GeneratedStructure`/`StructurePiece`) to inclusive block coords.
-         *
-         * Bukkit's `BoundingBox` upper corner is exclusive (a single block at
-         * (0,0,0) is min(0,0,0)..max(1,1,1)), so we subtract 1 for an inclusive
-         * block max.
+         * Converts a structure or structure-piece [BoundingBox] to block coords.
+         * Paper builds those boxes straight from the game's own box, whose max
+         * corner is already the last block inside, so nothing is subtracted.
          */
         fun fromBukkit(b: BoundingBox): IntBox = IntBox(
             b.minX.toInt(), b.minY.toInt(), b.minZ.toInt(),
-            (b.maxX - 1).toInt(), (b.maxY - 1).toInt(), (b.maxZ - 1).toInt(),
+            b.maxX.toInt(), b.maxY.toInt(), b.maxZ.toInt(),
         )
 
         /** The smallest box enclosing all of [boxes]. Throws on an empty list. */

@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * Dedup: every loaded chunk of a city reports the same structure, so we key
  * by the structure bounding-box min corner (the city's [EndCity.origin]) in
- * an in-memory seen-set — cheap rejection before any DB hit — backed by the
+ * an in-memory seen-set - cheap rejection before any DB hit - backed by the
  * DB UNIQUE constraint for cross-restart and concurrent safety.
  */
 class CityDiscoveryManager(private val plugin: BetterEnd) {
@@ -39,7 +39,7 @@ class CityDiscoveryManager(private val plugin: BetterEnd) {
 
     /**
      * Considers one generated structure for registration. MUST be called on the
-     * region thread owning the structure's chunk — it reads the structure's
+     * region thread owning the structure's chunk - it reads the structure's
      * bounding box and pieces synchronously here, then hands plain data to the
      * async DB path.
      */
@@ -72,6 +72,11 @@ class CityDiscoveryManager(private val plugin: BetterEnd) {
         }
     }
 
+    /** Lets a deleted city be found again the next time its chunks load, without a restart. */
+    fun forget(city: EndCity) {
+        seen.remove("${city.world}:${city.origin.first}:${city.origin.second}:${city.origin.third}")
+    }
+
     private fun notifyDiscovery(city: EndCity) {
         val c = city.region
         plugin.logger.info(
@@ -101,7 +106,7 @@ class CityDiscoveryManager(private val plugin: BetterEnd) {
         for (world in plugin.server.worlds) {
             if (world.environment != World.Environment.THE_END) continue
             for (chunk in world.loadedChunks) {
-                val loc = chunk.getBlock(0, world.minHeight, 0).location
+                val loc = org.bukkit.Location(world, (chunk.x shl 4).toDouble(), world.minHeight.toDouble(), (chunk.z shl 4).toDouble())
                 plugin.scheduler.runAtLocation(loc, Runnable {
                     for (gs in world.getStructures(chunk.x, chunk.z, Structure.END_CITY)) {
                         handle(world, gs)

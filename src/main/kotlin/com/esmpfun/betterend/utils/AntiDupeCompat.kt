@@ -11,7 +11,7 @@ import java.io.File
 import java.util.UUID
 
 /**
- * Soft integration with AntiDupePro (ADP). No compile/link dependency — ADP's
+ * Soft integration with AntiDupePro (ADP). No compile/link dependency - ADP's
  * ownership tag is a plain PersistentDataContainer STRING (the holder's UUID)
  * under a key its admin configures (`ownership.namespace`/`ownership.key`,
  * default `antidupepro:adp_owner`), so everything here works through public
@@ -20,7 +20,7 @@ import java.util.UUID
  * Why Mantle cares (see ElytraVaults):
  * - Vanilla vaults match key items with `isSameItemSameComponents`; an ADP
  *   ownership tag on the configured key stack makes the vault demand the
- *   stamping admin's exact UUID tag — no player can ever open it.
+ *   stamping admin's exact UUID tag - no player can ever open it.
  *   [stripOwnership] removes the tag from the stamped key.
  * - A vault-dispensed elytra is a brand-new stack ADP has never seen. Pre-tagging
  *   it with the opener's UUID ([tagOwner]) makes ADP's pickup handler treat it as
@@ -37,7 +37,7 @@ object AntiDupeCompat {
     /**
      * Every ownership key ADP currently recognizes: the configured primary, the
      * declared `ownership.legacy_keys`, and the key recorded in ADP's
-     * `ownership-key` marker file (its self-healing rename mechanism — after a
+     * `ownership-key` marker file (its self-healing rename mechanism - after a
      * rename the marker names the previous key, which is still live on items).
      */
     fun ownershipKeys(): List<NamespacedKey> {

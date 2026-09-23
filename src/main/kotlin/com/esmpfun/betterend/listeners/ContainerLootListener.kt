@@ -28,8 +28,11 @@ import org.bukkit.inventory.Inventory
 import org.bukkit.inventory.InventoryHolder
 import org.bukkit.inventory.ItemStack
 import org.bukkit.loot.LootContext
+import org.bukkit.loot.LootTable
+import org.bukkit.loot.LootTables
 import org.bukkit.loot.Lootable
 import org.bukkit.persistence.PersistentDataType
+import kotlin.coroutines.resume
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
@@ -49,7 +52,7 @@ import java.util.concurrent.ConcurrentHashMap
  * city's envelope but outside the structure.
  *
  * How it works:
- *  - Each container has a shared **template** — the canonical contents every
+ *  - Each container has a shared **template** - the canonical contents every
  *    first-open copy is cloned from, materialized once by rolling the block's
  *    vanilla loot table (a naturally-generated city chest holds an UNROLLED
  *    loot table / empty inventory until first opened). Persists across resets.
@@ -57,7 +60,8 @@ import java.util.concurrent.ConcurrentHashMap
  *    normal click gets a per-player copy.
  *  - Double chests are keyed by the left half (one 54-slot template/copy).
  *  - Player-placed containers are PDC-tagged at place time and keep vanilla
- *    behaviour.
+ *    behaviour. So does any untagged container that holds items but no loot
+ *    table (see [isCityLoot]).
  *  - Hopper movement in/out of an eligible container is cancelled.
  */
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -119,6 +123,9 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
         ) return
 
         val container = state as? Container ?: return
+        val inv = container.inventory
+        val holder = inv.holder
+        if (!isCityLoot(state, holder, inv)) return
         val player = event.player
 
         // Sneak + admin = edit the shared template; otherwise a per-player copy.
@@ -133,9 +140,7 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
         if (openDebounce.size > 100) openDebounce.entries.removeIf { now - it.value > 10_000 }
 
         // Resolve the normalized key block (left half of a double chest) and the
-        // inventory size SYNCHRONOUSLY — we're on the block's region thread now.
-        val inv = container.inventory
-        val holder = inv.holder
+        // inventory size SYNCHRONOUSLY, while we're on the block's region thread.
         val keyBlock = if (holder is DoubleChest) (holder.leftSide as? Chest)?.block ?: block else block
         val size = if (holder is DoubleChest) 54 else inv.size
         val pos = ContainerLootManager.ContainerPos(keyBlock.x, keyBlock.y, keyBlock.z)
@@ -155,12 +160,12 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
             } else {
                 // First looter past the refresh window starts a new per-city cycle:
                 // wipe everyone's copies so the city's loot is fresh again. Editing
-                // the template (above) never triggers a cycle. Lazy — no scheduler.
+                // the template (above) never triggers a cycle. Lazy - no scheduler.
                 if (plugin.cityManager.beginCycleIfDue(city.id, refreshMs())) {
                     plugin.containerLootManager.clearCity(city.id)
                     plugin.cityManager.persistCycleStart(city.id)
                     // Optionally restore the structure too (revert griefing) on
-                    // the cycle roll. Opt-in — a restore rewrites blocks.
+                    // the cycle roll. Opt-in - a restore rewrites blocks.
                     if (plugin.config.getBoolean("snapshot.auto-reset-on-refresh", false) &&
                         plugin.snapshotManager.hasSnapshot(city.id)
                     ) {
@@ -176,23 +181,51 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     fun onContainerClose(event: InventoryCloseEvent) {
         val player = event.player as? Player ?: return
-        val contents = event.inventory.contents.map { it?.clone() }.toTypedArray()
-        when (val holder = event.inventory.holder) {
-            is CopyHolder -> plugin.launchAsync {
-                plugin.containerLootManager.saveContents(holder.cityId, holder.pos, player.uniqueId, contents)
-            }
-            is TemplateHolder -> plugin.launchAsync {
-                plugin.containerLootManager.updateTemplateContents(holder.cityId, holder.pos, contents)
-            }
+        when (val holder = event.inventory.getHolder(false)) {
+            is CopyHolder -> plugin.containerLootManager.queueSaveContents(
+                holder.cityId, holder.pos, player.uniqueId, snapshot(event.inventory))
+            is TemplateHolder -> plugin.containerLootManager.queueUpdateTemplate(
+                holder.cityId, holder.pos, snapshot(event.inventory))
             else -> return
         }
     }
 
-    /** Tag containers players place inside cities so they keep vanilla behaviour. */
+    private fun snapshot(inv: Inventory): Array<ItemStack?> = inv.contents.map { it?.clone() }.toTypedArray()
+
+    /**
+     * Saves and closes every open loot inventory, then writes out anything
+     * still waiting. Called from onDisable while listeners are still
+     * registered: without it, loot taken from a copy that was open at
+     * shutdown or reload stays in the player's inventory while the copy
+     * itself reverts to full on the next start.
+     */
+    fun saveOpenOnShutdown() {
+        for (player in plugin.server.onlinePlayers) {
+            runCatching {
+                val top = player.openInventory.topInventory
+                when (val holder = top.getHolder(false)) {
+                    is CopyHolder -> plugin.containerLootManager.queueSaveContents(
+                        holder.cityId, holder.pos, player.uniqueId, snapshot(top))
+                    is TemplateHolder -> plugin.containerLootManager.queueUpdateTemplate(
+                        holder.cityId, holder.pos, snapshot(top))
+                    else -> return@runCatching
+                }
+                // Folia can't touch a player's screen from here; the snapshot above still counts.
+                if (!plugin.scheduler.isFolia) player.closeInventory()
+            }
+        }
+        plugin.containerLootManager.flushPending()
+    }
+
+    /**
+     * Tag containers players place so they keep vanilla behaviour. Every End
+     * placement is tagged, not just those inside a known city, so a chest
+     * placed before its city finishes registering is covered too.
+     */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     fun onContainerPlace(event: BlockPlaceEvent) {
         if (event.block.type !in ELIGIBLE) return
-        if (plugin.cityManager.getCachedCityAt(event.block.location) == null) return
+        if (event.block.world.environment != org.bukkit.World.Environment.THE_END) return
         val state = event.block.state as? TileState ?: return
         state.persistentDataContainer.set(playerPlacedKey, PersistentDataType.BYTE, 1)
         state.update()
@@ -218,7 +251,7 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
                     plugin.logger.warning("[ContainerLoot] Template materialize failed at ${keyLoc.blockX},${keyLoc.blockY},${keyLoc.blockZ}: ${e.message}")
                     arrayOfNulls<ItemStack?>(size)
                 }
-                cont.resume(result) {}
+                cont.resume(result)
             })
         }
 
@@ -236,10 +269,10 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
     }
 
     private fun rollSingle(state: BlockState, inv: Inventory, size: Int): Array<ItemStack?> {
-        val lootable = state as? Lootable
-        val source: Array<ItemStack?> = if (lootable?.lootTable != null && state is Container) {
+        val table = tableFor(state as? Lootable, state.type)
+        val source: Array<ItemStack?> = if (table != null) {
             val temp = Bukkit.createInventory(null, size)
-            lootable.lootTable!!.fillInventory(temp, java.util.Random(), LootContext.Builder(state.block.location).build())
+            table.fillInventory(temp, java.util.Random(), LootContext.Builder(state.block.location).build())
             temp.contents
         } else {
             inv.contents
@@ -249,14 +282,39 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
 
     private fun rollHalf(chest: Chest?, out: Array<ItemStack?>, offset: Int) {
         chest ?: return
-        val half: Array<ItemStack?> = if (chest.lootTable != null) {
+        val table = tableFor(chest, chest.type)
+        val half: Array<ItemStack?> = if (table != null) {
             val temp = Bukkit.createInventory(null, 27)
-            chest.lootTable!!.fillInventory(temp, java.util.Random(), LootContext.Builder(chest.block.location).build())
+            table.fillInventory(temp, java.util.Random(), LootContext.Builder(chest.block.location).build())
             temp.contents
         } else {
             chest.blockInventory.contents
         }
         for (i in 0 until 27) out[offset + i] = half.getOrNull(i)?.clone()
+    }
+
+    /**
+     * The container's own unrolled loot table. A chest without one was looted
+     * before this plugin ran ([isCityLoot] only lets empty ones through), so it
+     * gets fresh End City loot instead of a permanently empty copy.
+     */
+    private fun tableFor(lootable: Lootable?, type: Material): LootTable? =
+        lootable?.lootTable ?: if (type == Material.CHEST || type == Material.TRAPPED_CHEST) LootTables.END_CITY_TREASURE.lootTable else null
+
+    /**
+     * Whether an untagged container in a structure piece is the city's own:
+     * its loot is still unrolled, or it stands empty (looted before this
+     * plugin ran). One holding items with no loot table was stocked by a
+     * player, so it stays an ordinary chest. Treating it as city loot would
+     * copy that player's items to everyone.
+     */
+    private fun isCityLoot(state: BlockState, holder: InventoryHolder?, inv: Inventory): Boolean {
+        val tables = if (holder is DoubleChest) {
+            listOf((holder.leftSide as? Chest)?.lootTable, (holder.rightSide as? Chest)?.lootTable)
+        } else {
+            listOf((state as? Lootable)?.lootTable)
+        }
+        return tables.any { it != null } || inv.isEmpty
     }
 
     private suspend fun openVirtual(
@@ -266,7 +324,8 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
         title: Component,
         contents: Array<ItemStack?>
     ) = kotlinx.coroutines.suspendCancellableCoroutine<Unit> { cont ->
-        plugin.scheduler.runAtEntity(player, Runnable {
+        // The retired callback resumes too, or a player logging out mid-open would strand this coroutine.
+        plugin.scheduler.runAtEntity(player, retired = Runnable { cont.resume(Unit) }, task = Runnable {
             try {
                 if (player.isOnline) {
                     val virtual = plugin.server.createInventory(holder, size, title)
@@ -282,7 +341,7 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
             } catch (e: Exception) {
                 plugin.logger.warning("[ContainerLoot] Failed to open container for ${player.name}: ${e.message}")
             }
-            cont.resume(Unit) {}
+            cont.resume(Unit)
         })
     }
 
@@ -314,8 +373,9 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
                                 if ((b.state as? TileState)?.persistentDataContainer
                                         ?.has(playerPlacedKey, PersistentDataType.BYTE) == true) continue
                                 val holder = te.inventory.holder
+                                if (!isCityLoot(te, holder, te.inventory)) continue
                                 val keyBlock = if (holder is DoubleChest) (holder.leftSide as? Chest)?.block ?: b else b
-                                if (holder is DoubleChest && keyBlock != b) continue // right half — handled by left
+                                if (holder is DoubleChest && keyBlock != b) continue // right half - handled by left
                                 val size = if (holder is DoubleChest) 54 else te.inventory.size
                                 results.add(
                                     Triple(
@@ -328,7 +388,7 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
                         } catch (e: Exception) {
                             plugin.logger.warning("[ContainerLoot] City scan failed in chunk $cx,$cz: ${e.message}")
                         }
-                        cont.resume(results) {}
+                        cont.resume(results)
                     })
                 }
                 for ((pos, contents, material) in rolled) {
@@ -343,15 +403,21 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
     }
 
     private fun isProtectedTemplate(inv: Inventory): Boolean {
-        val block: Block = when (val h = inv.holder) {
-            is DoubleChest -> (h.leftSide as? Chest)?.block ?: return false
-            is BlockInventoryHolder -> h.block
+        // Hoppers fire this constantly server-wide: reject by position before
+        // building any block state.
+        val loc = inv.location ?: return false
+        if (plugin.cityManager.getCachedCityAt(loc) == null) return false
+        val holder = inv.getHolder(false)
+        val block: Block = when (holder) {
+            is DoubleChest -> (holder.leftSide as? Chest)?.block ?: return false
+            is BlockInventoryHolder -> holder.block
             else -> return false
         }
         if (block.type !in ELIGIBLE) return false
         val city = plugin.cityManager.getCachedCityAt(block.location) ?: return false
         if (!city.inStructurePiece(block.location)) return false
         val state = block.state as? TileState ?: return false
-        return !state.persistentDataContainer.has(playerPlacedKey, PersistentDataType.BYTE)
+        if (state.persistentDataContainer.has(playerPlacedKey, PersistentDataType.BYTE)) return false
+        return isCityLoot(state, holder, inv)
     }
 }
