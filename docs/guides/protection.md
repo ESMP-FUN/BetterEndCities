@@ -83,7 +83,7 @@ Cities can be broken freely. Finding cities, per-player loot, elytra claims and 
 * It doesn't read or create WorldGuard regions
 * It doesn't control who can open chests; [per-player loot](per-player-loot.md) handles what's inside
 
-If your server needs one of these, ask on [Discord](https://discord.gg/qwYcTpHsNC).
+If your server needs one of these, ask on [Discord](https://discord.gg/aWMU2JNXex).
 
 ***
 

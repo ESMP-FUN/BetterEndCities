@@ -11,7 +11,7 @@ assignees: ''
 A clear and concise description of what the bug is in the game or console.
 
 **Minecraft & Server Environment**
-* Server Software / Core (e.g., Paper, Purpur, Spigot):
+* Server Software / Core (for example Paper, Folia or Purpur):
 * Server Version (e.g., 1.20.4, 26.1.2, 26.3):
 * Server Java Version (e.g., JDK21, JDK25):
 * Plugin Version (e.g., 1.0.2):

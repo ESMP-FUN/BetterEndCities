@@ -36,7 +36,7 @@ class ProtectionListener(private val plugin: BetterEnd) : Listener {
     private companion object {
         val CONTAINERS = setOf(
             Material.CHEST, Material.TRAPPED_CHEST, Material.BARREL,
-            Material.DISPENSER, Material.DROPPER,
+            Material.DISPENSER, Material.DROPPER, Material.BREWING_STAND,
         )
     }
 

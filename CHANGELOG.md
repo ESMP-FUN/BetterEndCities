@@ -4,12 +4,13 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
-## [Unreleased]
+## [0.4.0] - 2026-09-23
 ### Added
 - **Ship-only protection** (`protection.scope: ship-only`). Towers and bridges are left open; the ship and the city's loot chests stay protected.
 - **Takeable dragon head** (`protection.dragon-head-takeable`). A player can take the ship's head once, and resets never put it back.
 - **XP level price** (`elytra.cost.levels`), optionally **doubling with each elytra bought** (`elytra.cost.double-each-claim`). Right-click the frame to see your next price.
 - **Frame shimmer** (`elytra.frame-aura`), a faint particle effect around the frame when a player is near.
+- **The ship's brewing stand is per-player.** Every player finds its two healing potions.
 
 ### Changed
 - **Every setting is now in the `/betterend` menu.** The old End Cities page is split into Per-player Loot, Protection and Finding Cities & Resets, plus new Storage and Updates & Stats pages.
@@ -19,7 +20,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - **MySQL storage never started.** The plugin now starts on MySQL, and large loot copies (full shulker boxes, written books) save.
 - **Loot could be taken twice** when a chest was open during a shutdown or reload, or reopened straight after closing.
 - **A player's own filled chest inside a city was copied to everyone.** It now stays an ordinary shared chest.
-- **Cities looted before the plugin was installed gave out empty chests.** They now roll fresh End City loot for each player.
+- **Cities looted before the plugin was installed gave out empty chests.** They now roll fresh End City loot for each player, including chests already saved empty by an older version.
 - **City bounds were one block short** on their east, top and south edges. Existing cities are corrected on the first start.
 - **Finding a ship's elytra frame could freeze the server** by loading up to 25 chunks at once.
 - **Saving a city's copy no longer freezes the server** while its chunks load.
