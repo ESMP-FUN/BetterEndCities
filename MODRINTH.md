@@ -70,6 +70,10 @@ You never have to open a settings (`.yml`) file.
 - `/betterend reset` puts the blocks back and gives everyone fresh loot
 - Or let that happen by itself on every loot refresh
 
+**Your own words**
+- Reword or recolour any message, menu page or hint in `messages.yml`
+- Updates add new messages to your file and keep the text you changed
+
 ---
 
 ## Will it work on my server?
@@ -104,7 +108,7 @@ Optional: with [Better Anti-Dupe](https://github.com/ESMP-FUN/BetterAntiDupe) in
 | `/betterend resetloot <id> <player>` | Let one player loot it again |
 | `/betterend clearclaims <id>` | Let everyone claim the elytra again |
 | `/betterend delete <id>` | Stop managing this city |
-| `/betterend reload` | Re-read the settings file |
+| `/betterend reload` | Re-read the settings and messages files |
 
 </details>
 
