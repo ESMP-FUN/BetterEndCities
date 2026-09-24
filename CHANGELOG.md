@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [0.5.0] - 2026-09-25
+### Added
+- **`messages.yml`.** Every piece of text the plugin shows in game can be changed, colours included. `/betterend reload` applies your changes.
+- **`messages.yml` updates itself.** New messages are added and retired ones removed when you update the plugin. Text you've changed is kept.
+
 ## [0.4.0] - 2026-09-23
 ### Added
 - **Ship-only protection** (`protection.scope: ship-only`). Towers and bridges are left open; the ship and the city's loot chests stay protected.

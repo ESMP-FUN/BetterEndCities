@@ -1,6 +1,6 @@
 package com.esmpfun.betterend.gui.framework
 
-import net.kyori.adventure.text.minimessage.MiniMessage
+import com.esmpfun.betterend.BetterEnd
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
@@ -15,9 +15,7 @@ import org.bukkit.event.inventory.InventoryDragEvent
  * always cancelled and dispatched; the player's own inventory stays usable,
  * except for the moves that could pull items out of the GUI.
  */
-class VcGuiListener : Listener {
-
-    private val mm: MiniMessage = MiniMessage.miniMessage()
+class VcGuiListener(private val plugin: BetterEnd) : Listener {
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = false)
     fun onClick(event: InventoryClickEvent) {
@@ -29,7 +27,7 @@ class VcGuiListener : Listener {
             if (gui.requiredPermission != null && !player.hasPermission(gui.requiredPermission)) {
                 event.isCancelled = true
                 player.closeInventory()
-                player.sendMessage(mm.deserialize("<red>You no longer have permission to use this GUI."))
+                player.sendMessage(plugin.messages.get("cost-picker.no-permission"))
             }
             return
         }
@@ -37,7 +35,7 @@ class VcGuiListener : Listener {
         if (gui.requiredPermission != null && !player.hasPermission(gui.requiredPermission)) {
             event.isCancelled = true
             player.closeInventory()
-            player.sendMessage(mm.deserialize("<red>You no longer have permission to use this GUI."))
+            player.sendMessage(plugin.messages.get("cost-picker.no-permission"))
             return
         }
 

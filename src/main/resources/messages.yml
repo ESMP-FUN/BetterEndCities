@@ -1,0 +1,599 @@
+# Better End Cities messages
+#
+# Every piece of text the plugin shows in game: chat messages, the text above
+# the hotbar, the /betterend menu, the setup tour and the cost item picker.
+# Change any text you like, then run /betterend reload to see it.
+#
+# Colours and styles use MiniMessage tags, for example <red>, <gold> or
+# <bold>. You can try your text at https://webui.advntr.dev first.
+#
+# Words in curly brackets, like {id} or {player}, are filled in by the plugin.
+# Keep them in your text. The note above each message lists the ones it uses.
+# {prefix} works in every message and shows the prefix below.
+#
+# Keep the double quotes around each message. Lines inside a list (the ones
+# starting with "- ") each show as their own line. "" is an empty line.
+#
+# When you update the plugin, new messages are added to this file by
+# themselves, and messages the plugin no longer uses are removed. Text you
+# have changed is never touched.
+
+# Shown wherever a message contains {prefix}.
+prefix: "<light_purple>[BetterEndCities]</light_purple> "
+
+# Replies to /betterend. Only staff with the betterend.admin permission can use it.
+command:
+  # The description of /betterend in the server's /help list. Changes to this
+  # one take effect after a restart.
+  description: "Better End Cities admin command and settings menu"
+  # Someone used /betterend in the first seconds after the server started.
+  starting-up: "<gray>Better End Cities is still starting up. Try again in a moment."
+  # The word after /betterend isn't one of the commands.
+  unknown: "<red>Unknown command. <gray>Type <white>/betterend help</white> to see them all."
+  # The console used a command that needs someone in game.
+  players-only: "<red>Only a player in game can use this."
+  menu-players-only: "<red>The menu can only be opened in game. Try <white>/betterend list</white> instead."
+  setup-players-only: "<red>The setup tour can only be opened in game."
+  # /betterend reload finished.
+  reload-done: "<green>Better End Cities settings and messages reloaded."
+  # The command needs a city, and none was given while standing outside every city.
+  need-city: "<red>Type a city number (see <white>/betterend list</white>) or stand inside a city."
+  # {id} is the number that was typed.
+  unknown-city: "<red>There's no city #{id}. See <white>/betterend list</white>."
+  # /betterend resetloot was used without a player name.
+  need-player: "<red>Type a player name too."
+  # {player} is the name that was typed.
+  unknown-player: "<red>No player called '{player}' has been on this server."
+
+  # /betterend help, one line each.
+  help:
+    - "<dark_purple><bold>Better End Cities</bold></dark_purple> <gray>- admin commands"
+    - "<white>/betterend</white> <gray>- open the settings menu"
+    - "<white>/betterend setup</white> <gray>- guided first-time setup tour"
+    - "<white>/betterend list</white> <gray>- list the End Cities found so far"
+    - "<white>/betterend info <id></white> <gray>- details of one city"
+    - "<white>/betterend tp <id></white> <gray>- teleport to a city"
+    - "<white>/betterend snapshot <id></white> <gray>- save a copy of the city's blocks to put back later"
+    - "<white>/betterend reset <id></white> <gray>- put the city's blocks back and give everyone fresh loot"
+    - "<white>/betterend resetloot <id> <player></white> <gray>- let one player loot the city fresh"
+    - "<white>/betterend clearclaims <id></white> <gray>- forget who claimed this ship's elytra"
+    - "<white>/betterend delete <id></white> <gray>- stop managing a city (its loot and claims go with it)"
+    - "<white>/betterend reload</white> <gray>- reload config.yml and messages.yml"
+    - "<white>/betterend update</white> <gray>- check for updates"
+
+  # /betterend list
+  list:
+    empty: "<gray>No End Cities found yet. They're added as players find them."
+    # {count} is how many cities there are.
+    header: "<dark_purple>End Cities <gray>({count})"
+    # One line per city. {id} city number, {world} world name, {x} {y} {z} the
+    # city's lowest corner, {pieces} how many towers, bridges and ships it has.
+    # {ship} and {snapshot} show the two notes below when they apply, and
+    # nothing when they don't.
+    entry: "<gray>#<white>{id} <white>{world} <click:run_command:'/betterend tp {id}'><hover:show_text:'<gray>Teleport to city <white>#{id}'><green>[{x} {y} {z}]</green></hover></click> <dark_gray>• {pieces} pieces{ship}{snapshot}"
+    ship: " <dark_gray>• <aqua>ship"
+    snapshot: " <dark_gray>• <gray>snapshot saved"
+
+  # /betterend info. {id} is the city number throughout.
+  info:
+    header: "<dark_purple>End City <gray>#<white>{id}"
+    world: "<gray>World: <white>{world}"
+    # The city's two opposite corners.
+    bounds: "<gray>Bounds: <white>({min-x}, {min-y}, {min-z}) <gray>to <white>({max-x}, {max-y}, {max-z})"
+    # {count} is how many towers, bridges and ships the city has.
+    pieces: "<gray>Pieces: <white>{count}"
+    ship-found: "<gray>End Ship: <aqua>yes"
+    ship-none: "<gray>End Ship: none found (not every city has one)"
+    snapshot-saved: "<gray>Snapshot: <green>saved"
+    snapshot-none: "<gray>Snapshot: <yellow>none yet, run /betterend snapshot {id}"
+    # Only shown once someone has looted the city. {hours} is how long ago the
+    # current loot round started.
+    loot-cycle: "<gray>Loot cycle: <white>started {hours}h ago"
+
+  # /betterend tp
+  tp:
+    # {id} is the city number.
+    teleporting: "<gray>Teleporting to city <white>#{id}<gray>."
+    # {world} is the world the city is in.
+    world-not-loaded: "<red>The world '{world}' isn't loaded."
+
+  # /betterend snapshot. {id} is the city number.
+  snapshot:
+    saving: "<gray>Saving a copy of city #{id}. This can take a few seconds."
+    # {blocks} is how many blocks were saved.
+    done: "<green>Saved a copy of city #{id} ({blocks} blocks)."
+    failed: "<red>Saving the copy failed. The server console says why."
+
+  # /betterend reset. {id} is the city number, {copies} how many players' loot
+  # copies were cleared.
+  reset:
+    started: "<gray>Resetting city #{id}."
+    # {blocks} is how many blocks were put back.
+    done: "<green>City #{id} reset: {blocks} blocks put back, {copies} loot copies cleared, fresh loot for everyone."
+    # The city has no saved copy, so only the loot was reset.
+    done-no-snapshot: "<green>City #{id} reset: no saved copy, so the blocks were left alone. {copies} loot copies cleared, fresh loot for everyone."
+
+  # /betterend resetloot. {id} is the city number, {player} the player's name.
+  resetloot:
+    done-one: "<green>Cleared 1 chest copy for {player} in city #{id}. They can loot it fresh."
+    # {count} is how many chest copies were cleared.
+    done: "<green>Cleared {count} chest copies for {player} in city #{id}. They can loot it fresh."
+
+  # /betterend clearclaims. {id} is the city number.
+  clearclaims:
+    done-one: "<green>Cleared 1 elytra claim for city #{id}. Everyone can claim its ship's elytra again."
+    # {count} is how many claims were cleared.
+    done: "<green>Cleared {count} elytra claims for city #{id}. Everyone can claim its ship's elytra again."
+
+  # /betterend delete. {id} is the city number.
+  delete:
+    done: "<green>Deleted city #{id} (its loot, claims and saved copy were removed too)."
+    failed: "<red>Deleting the city failed. The server console says why."
+
+# The elytra item frame on an End Ship.
+elytra:
+  # The floating text above the frame, when there's no price.
+  hint-free: "<gray>Punch to claim your Elytra"
+  # The floating text above the frame, when there's a price. {price} is built
+  # from the price lines further down.
+  hint-cost: "<gray>Elytra costs {price}"
+  # Shown above the hotbar in the moment between a city appearing and the
+  # plugin adding it.
+  still-registering: "<yellow>This ship is still being registered. Try again in a moment."
+  # Shown above the hotbar when a player punches a frame they can't claim from.
+  # Which one shows depends on "Who can claim, how often" in the menu.
+  already-claimed-per-ship: "<red>You've already claimed this ship's elytra."
+  already-claimed-per-refresh: "<red>Already claimed. You can claim here again after this city's loot refreshes."
+  already-claimed-global: "<red>You've already claimed your elytra."
+  # Shown above the hotbar after a successful claim.
+  claimed: "<green>Elytra claimed. Happy flying!"
+  # Shown in chat when a player right-clicks the frame, or punches it without
+  # enough to pay.
+  price-free: "<gray>This elytra is free. Punch the frame to take it."
+  price-cost: "<gray>This elytra costs {price}<gray>. Punch the frame to buy it."
+  # The pieces {price} is made of. {levels} is a number of XP levels,
+  # {amount} and {item} the number and name of the cost item.
+  price-levels: "<aqua>{levels} levels"
+  price-items: "<aqua>{amount} x {item}"
+  # Goes between the two when a claim costs both levels and an item.
+  price-and: "<gray> and "
+  # Added after the price when "Price doubles with each elytra bought" is on.
+  # The first is used when loot never refreshes, the second otherwise, where
+  # {time} is one of the four time lines below.
+  doubling: "<dark_gray> Every elytra you buy doubles the price of the next one."
+  doubling-until: "<dark_gray> Every elytra you buy doubles the price of the next one, until {time} after you bought it."
+  time-hour: "an hour"
+  # {count} is a number of hours.
+  time-hours: "{count} hours"
+  time-day: "a day"
+  # {count} is a number of days.
+  time-days: "{count} days"
+
+# Shown above the hotbar when protection stops a player breaking or building.
+protection:
+  denied-city: "<red>This End City is protected."
+  denied-ship: "<red>The End Ship is protected."
+  # Only used when "What is protected" is set to only the ship and the chests.
+  denied-chests: "<red>The city's loot chests can't be broken."
+
+# Per-player chest loot.
+loot:
+  # The name at the top of a player's own copy of a city chest.
+  copy-title: "End City Loot"
+  # The name at the top of a chest a staff member opens while sneaking, which
+  # edits the loot everyone starts with.
+  template-title: "Loot Template (shared)"
+  # Sent to staff when they open that shared loot.
+  editing-template: "<gray>Editing the shared loot template. Changes apply to every player's first open."
+
+# Sent to staff with the betterend.discovery.notify permission when a new
+# city is found. {id} city number, {world} world name, {x} {y} {z} the city's
+# lowest corner, {pieces} how many towers, bridges and ships it has.
+discovery:
+  found: "{prefix}<gray>Discovered End City <gray>#<white>{id} <white>{world} <click:run_command:'/betterend tp {id}'><hover:show_text:'<gray>Teleport to city <white>#{id}'><green>[{x} {y} {z}]</green></hover></click> <dark_gray>• {pieces} pieces"
+
+# The names of the three "Who can claim, how often" choices. Shown in the
+# menu, the setup tour and at the top of the main menu.
+claim-modes:
+  per-ship: "Once per ship"
+  per-refresh: "Again after each loot refresh"
+  global: "Once per player, total"
+
+# The /betterend settings menu. Titles show in dark aqua and the text in grey
+# unless you give them a colour tag. Buttons have a "label" (the text on the
+# button) and a "tooltip" (the text shown when you hover over it).
+menu:
+  # Sent after saving a page.
+  saved: "<green>Settings saved and applied."
+  # Sent after saving a page whose settings only change after a restart.
+  saved-restart: "<green>Settings saved. They take effect the next time the server starts."
+
+  # The buttons at the bottom of every settings page.
+  buttons:
+    back:
+      label: "Back"
+      tooltip: "Return to the Better End Cities menu (without saving)"
+    save:
+      label: "Save"
+      tooltip: "Save, apply and return to the menu"
+    save-close:
+      label: "Save & Close"
+      tooltip: "Save, apply, and close"
+    close:
+      label: "Close"
+      tooltip: "Close without saving"
+    # On the main menu, the Elytra Frames page and the setup tour's last page.
+    cost-item:
+      label: "Choose Cost Item"
+      tooltip: "Pick which item an elytra claim costs, straight from your inventory"
+
+  # The first page of /betterend.
+  main:
+    title: "Better End Cities"
+    # {cities} is one of the two city count lines below, {mode} the chosen
+    # "Who can claim" setting, {cost} one of the two cost lines below.
+    body:
+      - "Renewable End Cities: every player earns their own elytra"
+      - "and their own loot, and the structures reset themselves."
+      - ""
+      - "{cities} • Elytra: {mode}"
+      - "{cost}"
+    cities-one: "1 End City registered"
+    # {count} is how many cities are registered.
+    cities: "{count} End Cities registered"
+    cost-free: "Claims are currently free."
+    # {amount} and {item} are the number and name of the cost item.
+    cost: "A claim currently costs {amount} x {item}."
+    buttons:
+      elytra:
+        label: "Elytra Frames"
+        tooltip: "Who can claim, what it costs, and the frame's hint"
+      loot:
+        label: "Per-player Loot"
+        tooltip: "Everyone's own chest copies and how often they refresh"
+      protection:
+        label: "Protection"
+        tooltip: "What players can and can't break or build in a city"
+      discovery:
+        label: "Finding Cities & Resets"
+        tooltip: "Finding cities, saved copies and putting blocks back"
+      storage:
+        label: "Storage"
+        tooltip: "Where the plugin keeps its data (SQLite or MySQL)"
+      updates:
+        label: "Updates & Stats"
+        tooltip: "Update checks, anonymous stats and extra logging"
+      setup:
+        label: "Setup Tour"
+        tooltip: "Walk through every setting, one plain question at a time"
+      close:
+        label: "Close"
+        tooltip: "Close the menu"
+
+  # The Elytra Frames page.
+  elytra:
+    title: "Elytra Frames"
+    # {item} is the cost item's name, {stack} how many of it fit in one stack.
+    body:
+      - "The ship's elytra item frame becomes renewable: punching it"
+      - "puts an elytra in your inventory and the frame stays for the"
+      - "next player. Vanilla feel, nothing to relearn."
+      - ""
+      - "Cost: 0 = free. Otherwise a claim consumes that many of the"
+      - "chosen item (currently: {item}, stacks to {stack})."
+      - "XP levels are taken on top of the item. With doubling on,"
+      - "each elytra a player buys costs twice the one before, until"
+      - "a loot refresh window has passed since that purchase."
+    inputs:
+      enabled: "Feature enabled"
+      claim-mode: "Who can claim, how often"
+      # {item} is the cost item's name.
+      cost-amount: "Cost ({item}, 0 = free)"
+      cost-levels: "XP levels per claim (0 = none)"
+      double-each-claim: "Price doubles with each elytra bought"
+      text-display: "Floating hint above the frame"
+      frame-aura: "Shimmer around the frame when a player is near"
+    # Replaces the usual cost item tooltip on this page.
+    cost-item-tooltip: "Pick the cost item from your inventory (unsaved edits here are discarded)"
+
+  # The Per-player Loot page.
+  loot:
+    title: "Per-player Loot"
+    body:
+      - "Every player who opens a city chest gets their own private"
+      - "copy of what's inside, so the first player through no longer"
+      - "empties the city for everyone else. Chests players place"
+      - "themselves stay normal and shared."
+      - ""
+      - "Refresh window: how many hours before a city's loot comes"
+      - "back. Each city counts down on its own, starting when someone"
+      - "first loots it. 0 = never, so each player loots each chest once."
+    inputs:
+      enabled: "Per-player chest loot"
+      refresh-hours: "Refresh window (hours, 0 = never)"
+
+  # The Protection page.
+  protection:
+    title: "Protection"
+    body:
+      - "Stops players griefing cities. Every block in a tower, a"
+      - "bridge or the ship is protected, whatever the block is. The"
+      - "empty space between towers stays free to build in."
+      - ""
+      - "'Only the ship' leaves towers and bridges open, but still"
+      - "guards the ship and the city's loot chests."
+      - ""
+      - "Reach past each tower: how many blocks of protection extend"
+      - "beyond a tower's walls, to cover its trim. 3 fits vanilla"
+      - "cities. Higher starts protecting empty space nearby."
+      - ""
+      - "Staff with the betterend.bypass.protection permission are"
+      - "never stopped."
+    inputs:
+      enabled: "Grief protection"
+      scope: "What is protected"
+      dragon-head-takeable: "Players may take the ship's dragon head (once, for good)"
+      piece-padding: "Reach past each tower (blocks)"
+      block-place: "Also stop players building inside"
+      block-explosions: "Also protect from creepers, TNT and other explosions"
+      notify-denied: "Tell players why their break or build was stopped"
+    # The two "What is protected" choices, also used in the setup tour.
+    scopes:
+      whole-city: "The whole city"
+      ship-only: "Only the ship and the city's chests"
+
+  # The Finding Cities & Resets page.
+  discovery:
+    title: "Finding Cities & Resets"
+    body:
+      - "Cities register themselves as players travel near them, and"
+      - "start working straight away."
+      - ""
+      - "Worlds to leave alone: world names, separated by commas, whose"
+      - "cities should behave exactly like vanilla. Cities already"
+      - "registered there keep working until you /betterend delete them."
+      - ""
+      - "A saved copy of each city lets /betterend reset put its blocks"
+      - "back. Putting blocks back on every loot refresh can suffocate"
+      - "players inside and erases anything built there, so it's off"
+      - "by default. The size limit is far above any real city."
+    inputs:
+      enabled: "Register new End Cities automatically"
+      startup-sweep: "Also check areas already loaded at startup"
+      excluded-worlds: "Worlds to leave alone (comma separated)"
+      auto-capture: "Save a copy of each city when it's found"
+      auto-reset-on-refresh: "Put blocks back on every loot refresh"
+      max-cells: "Largest saved copy (millions of blocks)"
+
+  # The Storage page.
+  storage:
+    title: "Storage"
+    body:
+      - "Where the plugin remembers your cities, who has claimed an"
+      - "elytra, and everyone's loot. SQLite needs nothing and is right"
+      - "for almost every server. Use MySQL only if several servers"
+      - "need to share one End."
+      - ""
+      - "The MySQL fields are ignored while SQLite is chosen. Leave the"
+      - "password empty to keep the one already saved."
+      - ""
+      - "Switching starts from an empty database: nothing is copied"
+      - "across. Changes here take effect after a restart."
+    inputs:
+      type: "Storage"
+      host: "MySQL address"
+      port: "MySQL port (usually 3306)"
+      database: "MySQL database name"
+      username: "MySQL username"
+      password: "MySQL password (empty = keep current)"
+    types:
+      sqlite: "SQLite: a file on this server, no setup"
+      mysql: "MySQL: a database server you run"
+    # Sent when the port box holds something that isn't a port. {value} is
+    # what was typed.
+    bad-port: "<yellow>'{value}' isn't a port number (1 to 65535), so the port was left unchanged."
+
+  # The Updates & Stats page.
+  updates:
+    title: "Updates & Stats"
+    body:
+      - "Updates: how the plugin handles a new version. Waiting on a"
+      - "brand-new release skips one that turns out broken and gets"
+      - "fixed within hours."
+      - ""
+      - "Anonymous stats count which settings are in use. Error reports"
+      - "send this plugin's own errors with IP addresses, file paths,"
+      - "passwords and player ids removed. Neither includes anything"
+      - "about your players or your world."
+      - ""
+      - "Changes on this page take effect after a restart, except extra"
+      - "logging, which applies at once."
+    inputs:
+      mode: "When a new version comes out"
+      check-interval-hours: "Check every (hours)"
+      hold-new-updates: "Wait before taking a brand-new release"
+      hold-new-updates-hours: "How long to wait (hours)"
+      metrics: "Send anonymous usage stats"
+      error-reporting: "Send automatic error reports"
+      verbose-logging: "Extra logging (noisy, for bug reports)"
+    modes:
+      "off": "Off: never check"
+      check-only: "Check quietly (see /betterend update)"
+      notify: "Tell staff, who can download it"
+      auto-stage: "Download it for the next restart by itself"
+
+# The window for choosing the elytra cost item, opened from the menu.
+cost-picker:
+  title: "<dark_aqua>Elytra Cost Item"
+  # Under the item in the middle. {stack} is how many of it fit in one stack.
+  current-lore:
+    - "<aqua>Current cost item (stacks to {stack})"
+    - ""
+    - "<gray>Shift-click an item in YOUR inventory"
+    - "<gray>to make it the cost (item is kept)."
+    - "<gray>The amount is set in the Elytra dialog."
+  reset:
+    name: "<red>Reset to default"
+    lore:
+      - "<gray>Shulker Shell"
+  save:
+    name: "<green>Save & set amount"
+    lore:
+      - "<gray>Saves the item, then reopens the"
+      - "<gray>Elytra settings so you can set how"
+      - "<gray>many a claim costs (slider)."
+  back:
+    name: "<yellow>Back"
+    lore:
+      - "<gray>Back to the Elytra settings (item not saved)"
+  close:
+    name: "<red>Close"
+  # Sent after saving. {item} is the item's name.
+  saved: "<green>Cost item saved: {item}"
+  # Sent after saving an item that the anti-dupe plugin marks with its owner,
+  # which would stop anyone paying with it. {material} is the item type.
+  anti-dupe-warning: "<red>Warning: AntiDupePro tracks {material}. Every player's copy is marked as theirs, so it won't count as this cost item and nobody could pay. Pick an item AntiDupePro doesn't track."
+  # Sent when someone loses the betterend.admin permission while the window is open.
+  no-permission: "<red>You no longer have permission to use this menu."
+
+# /betterend setup, the guided first-time tour. Titles show in dark aqua and
+# the text in grey unless you give them a colour tag.
+setup:
+  # Sent once per visit to staff who haven't finished or skipped the tour.
+  reminder: "{prefix}<gray>First time? Take the 2-minute <click:run_command:'/betterend setup'><hover:show_text:'<gray>Opens the guided setup'><green>[setup tour]</green></hover></click><gray>, or ignore this; the defaults already work."
+  # Sent after pressing Skip on the first page.
+  skipped: "<gray>Setup skipped, the defaults are live. /betterend reopens the menu anytime."
+
+  # The first page.
+  welcome:
+    title: "Better End Cities - first-time setup"
+    body:
+      - "Welcome! Better End Cities makes the End multiplayer-friendly:"
+      - ""
+      - "• Every player earns their own elytra from each End Ship."
+      - "• Every player gets their own copy of End City loot."
+      - "• Structures are protected, snapshotted, and resettable."
+      - ""
+      - "This tour walks through each setting in plain words."
+      - "Everything already works with the defaults."
+    start:
+      label: "Start the tour"
+      # {steps} is how many pages the tour has.
+      tooltip: "{steps} quick screens, about 2 minutes"
+    skip:
+      label: "Skip, defaults are fine"
+      tooltip: "Everything works out of the box; you can re-run this anytime"
+    close:
+      label: "Close"
+      tooltip: "Ask me again next time"
+
+  # The title of every tour page. {number} is this page, {total} how many
+  # there are, {title} the page's own title below.
+  step-title: "Setup ({number}/{total}): {title}"
+  buttons:
+    back:
+      label: "Back"
+      tooltip: "Previous step (this screen's edits are not saved)"
+    next:
+      label: "Next"
+      tooltip: "Save this step and continue"
+    finish:
+      label: "Save & finish"
+      tooltip: "Save this step and finish the tour"
+    finish-later:
+      label: "Finish later"
+      tooltip: "Close the tour. /betterend setup resumes right here"
+
+  steps:
+    elytra:
+      title: "Elytra frames"
+      body:
+        - "The elytra item frame in an End Ship becomes renewable:"
+        - "a player punches it (exactly like vanilla), gets an elytra in"
+        - "their inventory, and the frame stays for the next player."
+        - ""
+        - "'Who can claim, how often' is the big choice. 'Once per"
+        - "ship' is the classic, fair default."
+      inputs:
+        enabled: "Renewable elytra frames"
+        claim-mode: "Who can claim, how often"
+    cost:
+      title: "Elytra cost"
+      body:
+        - "A claim can cost something, say 1 shulker shell or 10 XP"
+        - "levels, or be completely free (the default)."
+        - ""
+        - "0 on a slider = free. To charge a different ITEM than the"
+        - "current one, use 'Choose Cost Item' in /betterend after the"
+        - "tour: you pick it straight from your inventory there."
+      inputs:
+        # {item} is the cost item's name.
+        cost-amount: "Cost ({item}, 0 = free)"
+        cost-levels: "XP levels per claim (0 = none)"
+        text-display: "Floating hint above the frame"
+    loot:
+      title: "Per-player loot"
+      body:
+        - "Every player gets their own private copy of each End City"
+        - "chest, so the second player to arrive doesn't find gutted"
+        - "containers."
+        - ""
+        - "The refresh window is per city: that many hours after a city"
+        - "is first looted, everyone's copies reset and the loot is"
+        - "fresh again. 0 = copies never refresh."
+      inputs:
+        enabled: "Per-player container loot"
+        refresh-hours: "Refresh window (hours, 0 = never)"
+    protection:
+      title: "Protection"
+      body:
+        - "Keeps End City structures grief-free: blocks inside the"
+        - "generated towers, bridges and the ship can't be broken or"
+        - "built over. The empty void between them stays fully"
+        - "buildable, and ops can bypass with a permission."
+        - ""
+        - "'Only the ship' leaves towers and bridges open, but still"
+        - "guards the ship and the city's loot chests."
+      inputs:
+        enabled: "Grief protection"
+        scope: "What is protected"
+        notify-denied: "Tell players when a break is denied"
+    snapshots:
+      title: "Snapshots & resets"
+      body:
+        - "A snapshot is a saved copy of a city's blocks, taken when"
+        - "the city is discovered. '/betterend reset <id>' restores it"
+        - "any time."
+        - ""
+        - "Auto-restore additionally rebuilds the city on every loot"
+        - "refresh. Nice for a truly renewable End, but it rewrites"
+        - "blocks while players may be inside, so it ships off."
+      inputs:
+        auto-capture: "Snapshot each city on discovery"
+        auto-reset-on-refresh: "Auto-restore blocks on loot refresh"
+
+  # The last page.
+  finish:
+    title: "Setup complete"
+    # {mode} is the chosen "Who can claim" setting, {cost} one of the two cost
+    # lines below, {hours} the loot refresh window in hours.
+    body:
+      - "That's everything, Better End Cities is live:"
+      - ""
+      - "• Elytra: {mode}"
+      - "• {cost}"
+      - "• Loot refresh: every {hours}h (per city)"
+      - ""
+      - "Change any of it later with /betterend."
+    cost-free: "Claims are free"
+    # {amount} and {item} are the number and name of the cost item.
+    cost: "A claim costs {amount} x {item}"
+    menu:
+      label: "Open the menu"
+      tooltip: "Everything from the tour lives in /betterend"
+    cost-item:
+      label: "Choose Cost Item"
+      tooltip: "Pick which item a claim costs, straight from your inventory"
+    done:
+      label: "Done"
+      tooltip: "Close. Happy flying!"

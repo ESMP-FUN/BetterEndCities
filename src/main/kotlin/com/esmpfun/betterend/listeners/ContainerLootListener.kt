@@ -72,8 +72,6 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
             Material.CHEST, Material.TRAPPED_CHEST, Material.BARREL,
             Material.DISPENSER, Material.DROPPER, Material.BREWING_STAND
         )
-        val COPY_TITLE: Component = Component.text("End City Loot")
-        val TEMPLATE_TITLE: Component = Component.text("Loot Template (shared)")
     }
 
     private fun enabled() = plugin.config.getBoolean("loot.enabled", true)
@@ -127,8 +125,8 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
             }
 
             if (isAdminEdit) {
-                openVirtual(player, TemplateHolder(city.id, pos), size, keyMaterial, TEMPLATE_TITLE, template)
-                player.sendMessage(Component.text("§7Editing the shared loot template. Changes apply to every player's first open."))
+                openVirtual(player, TemplateHolder(city.id, pos), size, keyMaterial, plugin.messages.get("loot.template-title"), template)
+                player.sendMessage(plugin.messages.get("loot.editing-template"))
             } else {
                 // The first player past the refresh window clears everyone's copies.
                 if (plugin.cityManager.beginCycleIfDue(city.id, refreshMs())) {
@@ -141,7 +139,7 @@ class ContainerLootListener(private val plugin: BetterEnd) : Listener {
                     }
                 }
                 val existing = plugin.containerLootManager.loadContents(city.id, pos, player.uniqueId)
-                openVirtual(player, CopyHolder(city.id, pos), size, keyMaterial, COPY_TITLE, existing ?: template)
+                openVirtual(player, CopyHolder(city.id, pos), size, keyMaterial, plugin.messages.get("loot.copy-title"), existing ?: template)
             }
         }
     }

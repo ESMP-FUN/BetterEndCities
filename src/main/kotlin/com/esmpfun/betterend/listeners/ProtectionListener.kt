@@ -197,11 +197,11 @@ class ProtectionListener(private val plugin: BetterEnd) : Listener {
 
     private fun notifyDenied(player: Player, city: EndCity, block: Block) {
         if (!plugin.config.getBoolean("protection.notify-denied", true)) return
-        val text = when {
-            !shipOnly() -> "§cThis End City is protected."
-            city.inShip(block.location, pad()) -> "§cThe End Ship is protected."
-            else -> "§cThe city's loot chests can't be broken."
+        val key = when {
+            !shipOnly() -> "protection.denied-city"
+            city.inShip(block.location, pad()) -> "protection.denied-ship"
+            else -> "protection.denied-chests"
         }
-        player.sendActionBar(net.kyori.adventure.text.Component.text(text))
+        player.sendActionBar(plugin.messages.get(key))
     }
 }

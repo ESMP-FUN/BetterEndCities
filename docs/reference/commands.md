@@ -23,7 +23,7 @@ Press Tab to complete commands and city numbers.
 | `/betterend resetloot <id> <player>` | Let one player loot the city again |
 | `/betterend clearclaims <id>` | Let everyone claim from the city's ship again |
 | `/betterend delete <id>` | Stop managing a city |
-| `/betterend reload` | Re-read `config.yml` |
+| `/betterend reload` | Re-read `config.yml` and `messages.yml` |
 | `/betterend update [check\|download\|status\|restore\|ignore\|unignore]` | Check for and download new versions |
 
 Leave out `<id>` while standing in a city to use that city.
@@ -82,7 +82,7 @@ Stops managing the city (protection, loot, claims) and deletes its saved copy.
 
 ### `/betterend reload`
 
-Re-reads `config.yml` after you edit it by hand. Changes made in the menu apply without it. `database`, `metrics` and `update` changes need a restart.
+Re-reads `config.yml` and `messages.yml` after you edit them by hand. Changes made in the menu apply without it. `database`, `metrics` and `update` changes need a restart.
 
 ### `/betterend update`
 
