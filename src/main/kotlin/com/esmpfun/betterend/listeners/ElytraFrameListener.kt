@@ -5,7 +5,6 @@ import com.esmpfun.betterend.utils.AntiDupeCompat
 import com.esmpfun.betterend.utils.StructureUtil
 import io.papermc.paper.event.player.PlayerItemFrameChangeEvent
 import net.kyori.adventure.text.Component
-import net.kyori.adventure.text.format.NamedTextColor
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.NamespacedKey
@@ -41,15 +40,20 @@ class ElytraFrameListener(private val plugin: BetterEnd) : Listener {
         private fun hintText(plugin: BetterEnd): Component {
             val cost = plugin.elytraClaimManager.costStack()
             val levels = plugin.config.getInt("elytra.cost.levels", 0)
-            if (cost == null && levels <= 0) return Component.text("Punch to claim your Elytra", NamedTextColor.GRAY)
-            var text = Component.text("Elytra costs ", NamedTextColor.GRAY)
-            if (levels > 0) text = text.append(Component.text("$levels levels", NamedTextColor.AQUA))
-            if (levels > 0 && cost != null) text = text.append(Component.text(" and ", NamedTextColor.GRAY))
-            if (cost != null) {
-                text = text.append(Component.text("${cost.amount} x ", NamedTextColor.AQUA))
-                    .append(cost.effectiveName().color(NamedTextColor.AQUA))
+            val price = priceText(plugin, levels, cost, cost?.amount ?: 0)
+                ?: return plugin.messages.get("elytra.hint-free")
+            return plugin.messages.get("elytra.hint-cost", "price" to price)
+        }
+
+        // "20 levels and 10 x Netherite Scrap", or null when it's free.
+        private fun priceText(plugin: BetterEnd, levels: Int, item: ItemStack?, items: Int): Component? {
+            val m = plugin.messages
+            val parts = buildList {
+                if (levels > 0) add(m.get("elytra.price-levels", "levels" to levels))
+                if (item != null && items > 0) add(m.get("elytra.price-items", "amount" to items, "item" to item.effectiveName()))
             }
-            return text
+            if (parts.isEmpty()) return null
+            return parts.reduce { a, b -> a.append(m.get("elytra.price-and")).append(b) }
         }
 
         /** Updates hints above loaded ship frames after a settings change; unloaded ones update on load. */
@@ -209,21 +213,13 @@ class ElytraFrameListener(private val plugin: BetterEnd) : Listener {
         val city = plugin.cityManager.getCachedCityAt(frame.location)
         if (city == null) {
             // Only possible in the moment between the city generating and registering.
-            player.sendActionBar(Component.text("This ship is still being registered. Try again in a moment.", NamedTextColor.YELLOW))
+            player.sendActionBar(plugin.messages.get("elytra.still-registering"))
             return
         }
         rememberShip(frame)
 
         if (plugin.elytraClaimManager.hasClaimed(city.id, player.uniqueId)) {
-            val msg = when (plugin.elytraClaimManager.mode()) {
-                com.esmpfun.betterend.managers.ElytraClaimManager.ClaimMode.PER_SHIP ->
-                    "You've already claimed this ship's elytra."
-                com.esmpfun.betterend.managers.ElytraClaimManager.ClaimMode.PER_REFRESH ->
-                    "Already claimed. You can claim here again after this city's loot refreshes."
-                com.esmpfun.betterend.managers.ElytraClaimManager.ClaimMode.GLOBAL ->
-                    "You've already claimed your elytra."
-            }
-            player.sendActionBar(Component.text(msg, NamedTextColor.RED))
+            player.sendActionBar(plugin.messages.get("elytra.already-claimed-${plugin.elytraClaimManager.mode().key}"))
             player.playSound(player.location, Sound.BLOCK_NOTE_BLOCK_BASS, 0.7f, 0.7f)
             return
         }
@@ -257,7 +253,7 @@ class ElytraFrameListener(private val plugin: BetterEnd) : Listener {
         giveOrDrop(player, elytra)
 
         plugin.elytraClaimManager.record(city.id, player.uniqueId)
-        player.sendActionBar(Component.text("Elytra claimed. Happy flying!", NamedTextColor.GREEN))
+        player.sendActionBar(plugin.messages.get("elytra.claimed"))
         player.playSound(player.location, Sound.ENTITY_PLAYER_LEVELUP, 0.8f, 1.2f)
         if (plugin.config.getBoolean("debug.verbose-logging", false)) {
             plugin.logger.info("[Elytra] ${player.name} claimed at city #${city.id} (${frame.location.blockX},${frame.location.blockY},${frame.location.blockZ})")
@@ -266,30 +262,18 @@ class ElytraFrameListener(private val plugin: BetterEnd) : Listener {
 
     // "This elytra costs 20 levels and 10 x Netherite Scrap", plus the doubling rule.
     private fun priceMessage(price: com.esmpfun.betterend.managers.ElytraClaimManager.Price): Component {
-        val parts = buildList {
-            if (price.levels > 0) add(Component.text("${price.levels} levels", NamedTextColor.AQUA))
-            val item = price.item
-            if (item != null && price.items > 0) {
-                add(Component.text("${price.items} x ", NamedTextColor.AQUA).append(item.effectiveName().color(NamedTextColor.AQUA)))
-            }
-        }
-        var line = Component.text("This elytra ", NamedTextColor.GRAY)
-        line = if (parts.isEmpty()) line.append(Component.text("is free. Punch the frame to take it.", NamedTextColor.GRAY))
-        else {
-            line = line.append(Component.text("costs ", NamedTextColor.GRAY)).append(parts[0])
-            if (parts.size > 1) line = line.append(Component.text(" and ", NamedTextColor.GRAY)).append(parts[1])
-            line.append(Component.text(". Punch the frame to buy it.", NamedTextColor.GRAY))
-        }
-        if (parts.isNotEmpty() && plugin.config.getBoolean("elytra.cost.double-each-claim", false)) {
+        val m = plugin.messages
+        val parts = priceText(plugin, price.levels, price.item, price.items)
+            ?: return m.get("elytra.price-free")
+        var line = m.get("elytra.price-cost", "price" to parts)
+        if (plugin.config.getBoolean("elytra.cost.double-each-claim", false)) {
             val hours = plugin.config.getInt("loot.refresh-hours", 12)
             val span = when {
                 hours <= 0 -> null
-                hours % 24 == 0 -> (hours / 24).let { if (it == 1) "a day" else "$it days" }
-                else -> if (hours == 1) "an hour" else "$hours hours"
+                hours % 24 == 0 -> (hours / 24).let { if (it == 1) m.raw("elytra.time-day") else m.raw("elytra.time-days", "count" to it) }
+                else -> if (hours == 1) m.raw("elytra.time-hour") else m.raw("elytra.time-hours", "count" to hours)
             }
-            val rule = if (span == null) " Every elytra you buy doubles the price of the next one."
-            else " Every elytra you buy doubles the price of the next one, until $span after you bought it."
-            line = line.append(Component.text(rule, NamedTextColor.DARK_GRAY))
+            line = line.append(if (span == null) m.get("elytra.doubling") else m.get("elytra.doubling-until", "time" to span))
         }
         return line
     }

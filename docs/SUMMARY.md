@@ -19,6 +19,7 @@
 ## Configuration
 
 * [config.yml](configuration/config.yml.md)
+* [messages.yml](configuration/messages.yml.md)
 * [Storage](configuration/storage.md)
 * [Metrics and Privacy](configuration/metrics.md)
 

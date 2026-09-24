@@ -8,7 +8,6 @@ import io.papermc.paper.dialog.Dialog
 import io.papermc.paper.dialog.DialogResponseView
 import io.papermc.paper.registry.data.dialog.ActionButton
 import io.papermc.paper.registry.data.dialog.DialogBase
-import io.papermc.paper.registry.data.dialog.body.DialogBody
 import io.papermc.paper.registry.data.dialog.input.DialogInput
 import io.papermc.paper.registry.data.dialog.type.DialogType
 import net.kyori.adventure.text.Component
@@ -26,30 +25,22 @@ object SetupTour {
 
     private val progress = ConcurrentHashMap<UUID, Int>()
 
+    // [key] names the step's section under `setup.steps` in messages.yml.
     private class Step(
-        val title: String,
-        val body: List<String>,
-        val inputs: (BetterEnd) -> List<DialogInput>,
+        val key: String,
+        val inputs: (BetterEnd, (String) -> Component) -> List<DialogInput>,
         val onSave: (BetterEnd, DialogResponseView) -> Unit,
     )
 
     private val steps = listOf(
         Step(
-            title = "Elytra frames",
-            body = listOf(
-                "The elytra item frame in an End Ship becomes renewable:",
-                "a player punches it (exactly like vanilla), gets an elytra in",
-                "their inventory, and the frame stays for the next player.",
-                "",
-                "'Who can claim, how often' is the big choice. 'Once per",
-                "ship' is the classic, fair default.",
-            ),
-            inputs = { plugin ->
+            key = "elytra",
+            inputs = { plugin, label ->
                 listOf(
-                    BeDialogs.toggle("elytra.enabled", "Renewable elytra frames", plugin.config.getBoolean("elytra.enabled", true)),
+                    BeDialogs.toggle("elytra.enabled", label("enabled"), plugin.config.getBoolean("elytra.enabled", true)),
                     BeDialogs.singleOption(
-                        "elytra.claim-mode", "Who can claim, how often",
-                        ElytraClaimManager.ClaimMode.entries.map { BeDialogs.Choice(it.key, it.label) },
+                        "elytra.claim-mode", label("claim-mode"),
+                        BeDialogs.claimModes(plugin),
                         ElytraClaimManager.ClaimMode.fromConfig(plugin.config.getString("elytra.claim-mode")).key,
                     ),
                 )
@@ -60,26 +51,18 @@ object SetupTour {
             },
         ),
         Step(
-            title = "Elytra cost",
-            body = listOf(
-                "A claim can cost something, say 1 shulker shell or 10 XP",
-                "levels, or be completely free (the default).",
-                "",
-                "0 on a slider = free. To charge a different ITEM than the",
-                "current one, use 'Choose Cost Item' in /betterend after the",
-                "tour: you pick it straight from your inventory there.",
-            ),
-            inputs = { plugin ->
+            key = "cost",
+            inputs = { plugin, label ->
                 val item = plugin.elytraClaimManager.costItemOrDefault()
-                val name = item.type.name.lowercase().replace('_', ' ')
                 listOf(
                     BeDialogs.slider(
-                        "elytra.cost.amount", "Cost ($name, 0 = free)",
+                        "elytra.cost.amount",
+                        plugin.messages.get("setup.steps.cost.inputs.cost-amount", "item" to BeDialogs.itemName(item)),
                         0f, item.maxStackSize.toFloat(), 1f,
                         plugin.config.getInt("elytra.cost.amount", 0).toFloat(),
                     ),
-                    BeDialogs.levelsSlider(plugin.config.getInt("elytra.cost.levels", 0)),
-                    BeDialogs.toggle("elytra.text-display", "Floating hint above the frame", plugin.config.getBoolean("elytra.text-display", true)),
+                    BeDialogs.levelsSlider(label("cost-levels"), plugin.config.getInt("elytra.cost.levels", 0)),
+                    BeDialogs.toggle("elytra.text-display", label("text-display"), plugin.config.getBoolean("elytra.text-display", true)),
                 )
             },
             onSave = { plugin, view ->
@@ -89,20 +72,11 @@ object SetupTour {
             },
         ),
         Step(
-            title = "Per-player loot",
-            body = listOf(
-                "Every player gets their own private copy of each End City",
-                "chest, so the second player to arrive doesn't find gutted",
-                "containers.",
-                "",
-                "The refresh window is per city: that many hours after a city",
-                "is first looted, everyone's copies reset and the loot is",
-                "fresh again. 0 = copies never refresh.",
-            ),
-            inputs = { plugin ->
+            key = "loot",
+            inputs = { plugin, label ->
                 listOf(
-                    BeDialogs.toggle("loot.enabled", "Per-player container loot", plugin.config.getBoolean("loot.enabled", true)),
-                    BeDialogs.refreshSlider("Refresh window (hours, 0 = never)", plugin.config.getInt("loot.refresh-hours", 12)),
+                    BeDialogs.toggle("loot.enabled", label("enabled"), plugin.config.getBoolean("loot.enabled", true)),
+                    BeDialogs.refreshSlider(label("refresh-hours"), plugin.config.getInt("loot.refresh-hours", 12)),
                 )
             },
             onSave = { plugin, view ->
@@ -111,21 +85,12 @@ object SetupTour {
             },
         ),
         Step(
-            title = "Protection",
-            body = listOf(
-                "Keeps End City structures grief-free: blocks inside the",
-                "generated towers, bridges and the ship can't be broken or",
-                "built over. The empty void between them stays fully",
-                "buildable, and ops can bypass with a permission.",
-                "",
-                "'Only the ship' leaves towers and bridges open, but still",
-                "guards the ship and the city's loot chests.",
-            ),
-            inputs = { plugin ->
+            key = "protection",
+            inputs = { plugin, label ->
                 listOf(
-                    BeDialogs.toggle("protection.enabled", "Grief protection", plugin.config.getBoolean("protection.enabled", true)),
-                    BeDialogs.singleOption("protection.scope", "What is protected", BeDialogs.SCOPES, BeDialogs.scopeKey(plugin.config.getString("protection.scope"))),
-                    BeDialogs.toggle("protection.notify-denied", "Tell players when a break is denied", plugin.config.getBoolean("protection.notify-denied", true)),
+                    BeDialogs.toggle("protection.enabled", label("enabled"), plugin.config.getBoolean("protection.enabled", true)),
+                    BeDialogs.singleOption("protection.scope", label("scope"), BeDialogs.scopes(plugin), BeDialogs.scopeKey(plugin.config.getString("protection.scope"))),
+                    BeDialogs.toggle("protection.notify-denied", label("notify-denied"), plugin.config.getBoolean("protection.notify-denied", true)),
                 )
             },
             onSave = { plugin, view ->
@@ -135,20 +100,11 @@ object SetupTour {
             },
         ),
         Step(
-            title = "Snapshots & resets",
-            body = listOf(
-                "A snapshot is a saved copy of a city's blocks, taken when",
-                "the city is discovered. '/betterend reset <id>' restores it",
-                "any time.",
-                "",
-                "Auto-restore additionally rebuilds the city on every loot",
-                "refresh. Nice for a truly renewable End, but it rewrites",
-                "blocks while players may be inside, so it ships off.",
-            ),
-            inputs = { plugin ->
+            key = "snapshots",
+            inputs = { plugin, label ->
                 listOf(
-                    BeDialogs.toggle("snapshot.auto-capture", "Snapshot each city on discovery", plugin.config.getBoolean("snapshot.auto-capture", true)),
-                    BeDialogs.toggle("snapshot.auto-reset-on-refresh", "Auto-restore blocks on loot refresh", plugin.config.getBoolean("snapshot.auto-reset-on-refresh", false)),
+                    BeDialogs.toggle("snapshot.auto-capture", label("auto-capture"), plugin.config.getBoolean("snapshot.auto-capture", true)),
+                    BeDialogs.toggle("snapshot.auto-reset-on-refresh", label("auto-reset-on-refresh"), plugin.config.getBoolean("snapshot.auto-reset-on-refresh", false)),
                 )
             },
             onSave = { plugin, view ->
@@ -165,30 +121,19 @@ object SetupTour {
     }
 
     private fun openWelcome(plugin: BetterEnd, player: Player) {
-        val begin = BeDialogs.button("Start the tour", NamedTextColor.GREEN, "${steps.size} quick screens, ~2 minutes") { _ ->
+        val begin = BeDialogs.button(plugin, "setup.welcome.start", NamedTextColor.GREEN, "steps" to steps.size) { _ ->
             progress[player.uniqueId] = 0
             plugin.scheduler.runAtEntity(player, Runnable { if (player.isOnline) openStep(plugin, player, 0) })
         }
-        val skip = BeDialogs.button("Skip, defaults are fine", NamedTextColor.YELLOW, "Everything works out of the box; you can re-run this anytime") { _ ->
+        val skip = BeDialogs.button(plugin, "setup.welcome.skip", NamedTextColor.YELLOW) { _ ->
             markCompleted(plugin)
-            player.sendMessage(Component.text("Setup skipped, the defaults are live. /betterend reopens the menu anytime.", NamedTextColor.GRAY))
+            player.sendMessage(plugin.messages.get("setup.skipped"))
             player.closeDialog()
         }
-        val close = BeDialogs.closeButton(player, "Close", "Ask me again next time")
+        val close = BeDialogs.closeButton(plugin, player, "setup.welcome.close")
 
-        val base = DialogBase.builder(Component.text("Better End Cities - first-time setup", NamedTextColor.DARK_AQUA))
-            .body(
-                listOf(
-                    "Welcome! Better End Cities makes the End multiplayer-friendly:",
-                    "",
-                    "• Every player earns their own elytra from each End Ship.",
-                    "• Every player gets their own copy of End City loot.",
-                    "• Structures are protected, snapshotted, and resettable.",
-                    "",
-                    "This tour walks through each setting in plain words.",
-                    "Everything already works with the defaults.",
-                ).map { DialogBody.plainMessage(Component.text(it, NamedTextColor.GRAY)) }
-            )
+        val base = DialogBase.builder(BeDialogs.title(plugin, "setup.welcome.title"))
+            .body(BeDialogs.body(plugin, "setup.welcome.body"))
             .pause(false)
             .canCloseWithEscape(true)
             .afterAction(DialogBase.DialogAfterAction.NONE)
@@ -201,6 +146,7 @@ object SetupTour {
 
     private fun openStep(plugin: BetterEnd, player: Player, index: Int) {
         val step = steps[index]
+        val section = "setup.steps.${step.key}"
         progress[player.uniqueId] = index
 
         fun saveStep(view: DialogResponseView) {
@@ -213,16 +159,12 @@ object SetupTour {
 
         val buttons = mutableListOf<ActionButton>()
         if (index > 0) {
-            buttons += BeDialogs.button("Back", NamedTextColor.YELLOW, "Previous step (this screen's edits are not saved)") { _ ->
+            buttons += BeDialogs.button(plugin, "setup.buttons.back", NamedTextColor.YELLOW) { _ ->
                 plugin.scheduler.runAtEntity(player, Runnable { if (player.isOnline) openStep(plugin, player, index - 1) })
             }
         }
         val lastStep = index == steps.lastIndex
-        buttons += BeDialogs.button(
-            if (lastStep) "Save & finish" else "Next",
-            NamedTextColor.GREEN,
-            if (lastStep) "Save this step and finish the tour" else "Save this step and continue",
-        ) { view ->
+        buttons += BeDialogs.button(plugin, if (lastStep) "setup.buttons.finish" else "setup.buttons.next", NamedTextColor.GREEN) { view ->
             saveStep(view)
             if (lastStep) {
                 progress.remove(player.uniqueId)
@@ -232,13 +174,15 @@ object SetupTour {
                 plugin.scheduler.runAtEntity(player, Runnable { if (player.isOnline) openStep(plugin, player, index + 1) })
             }
         }
-        val finishLater = BeDialogs.closeButton(player, "Finish later", "Close the tour. /betterend setup resumes right here")
+        val finishLater = BeDialogs.closeButton(plugin, player, "setup.buttons.finish-later")
 
-        val base = DialogBase.builder(
-            Component.text("Setup (${index + 1}/${steps.size}): ${step.title}", NamedTextColor.DARK_AQUA)
+        val title = BeDialogs.title(
+            plugin, "setup.step-title",
+            "number" to index + 1, "total" to steps.size, "title" to plugin.messages.get("$section.title"),
         )
-            .body(step.body.map { DialogBody.plainMessage(Component.text(it, NamedTextColor.GRAY)) })
-            .inputs(step.inputs(plugin))
+        val base = DialogBase.builder(title)
+            .body(BeDialogs.body(plugin, "$section.body"))
+            .inputs(step.inputs(plugin) { key -> plugin.messages.get("$section.inputs.$key") })
             .pause(false)
             .canCloseWithEscape(true)
             .afterAction(DialogBase.DialogAfterAction.NONE)
@@ -250,28 +194,27 @@ object SetupTour {
     }
 
     private fun openFinish(plugin: BetterEnd, player: Player) {
+        val m = plugin.messages
         val cost = plugin.elytraClaimManager.costStack()
-        val menu = BeDialogs.button("Open the menu", NamedTextColor.GREEN, "Everything from the tour lives in /betterend") { _ ->
+        val menu = BeDialogs.button(plugin, "setup.finish.menu", NamedTextColor.GREEN) { _ ->
             plugin.scheduler.runAtEntity(player, Runnable { if (player.isOnline) BeDialogs.openMainMenu(plugin, player) })
         }
-        val pickItem = BeDialogs.button("Choose Cost Item", NamedTextColor.GOLD, "Pick which item a claim costs, straight from your inventory") { _ ->
+        val pickItem = BeDialogs.button(plugin, "setup.finish.cost-item", NamedTextColor.GOLD) { _ ->
             player.closeDialog()
             plugin.scheduler.runAtEntity(player, Runnable { if (player.isOnline) CurrencyPickerView(plugin).open(player) })
         }
-        val close = BeDialogs.closeButton(player, "Done", "Close. Happy flying!")
+        val close = BeDialogs.closeButton(plugin, player, "setup.finish.done")
 
-        val costLine = if (cost == null) "Claims are free" else "A claim costs ${cost.amount} x ${cost.type.name.lowercase().replace('_', ' ')}"
-        val base = DialogBase.builder(Component.text("Setup complete", NamedTextColor.DARK_AQUA))
+        val costLine = if (cost == null) m.get("setup.finish.cost-free")
+        else m.get("setup.finish.cost", "amount" to cost.amount, "item" to BeDialogs.itemName(cost))
+        val base = DialogBase.builder(BeDialogs.title(plugin, "setup.finish.title"))
             .body(
-                listOf(
-                    "That's everything, Better End Cities is live:",
-                    "",
-                    "• Elytra: ${plugin.elytraClaimManager.mode().label}",
-                    "• $costLine",
-                    "• Loot refresh: every ${plugin.config.getInt("loot.refresh-hours", 12)}h (per city)",
-                    "",
-                    "Change any of it later with /betterend.",
-                ).map { DialogBody.plainMessage(Component.text(it, NamedTextColor.GRAY)) }
+                BeDialogs.body(
+                    plugin, "setup.finish.body",
+                    "mode" to m.get("claim-modes.${plugin.elytraClaimManager.mode().key}"),
+                    "cost" to costLine,
+                    "hours" to plugin.config.getInt("loot.refresh-hours", 12),
+                )
             )
             .pause(false)
             .canCloseWithEscape(true)

@@ -3,7 +3,6 @@ package com.esmpfun.betterend.managers
 import com.esmpfun.betterend.BetterEnd
 import com.esmpfun.betterend.models.EndCity
 import com.esmpfun.betterend.models.IntBox
-import net.kyori.adventure.text.minimessage.MiniMessage
 import org.bukkit.World
 import org.bukkit.generator.structure.GeneratedStructure
 import org.bukkit.generator.structure.Structure
@@ -63,11 +62,11 @@ class CityDiscoveryManager(private val plugin: BetterEnd) {
             "Discovered End City #${city.id} in ${city.world} " +
                 "(${c.minX},${c.minY},${c.minZ})..(${c.maxX},${c.maxY},${c.maxZ}), ${city.pieces.size} pieces"
         )
-        val comp = MiniMessage.miniMessage().deserialize(
-            "<light_purple>[BetterEndCities] <gray>Discovered End City <gray>#<white>${city.id} <white>${city.world} " +
-                "<click:run_command:'/betterend tp ${city.id}'><hover:show_text:'<gray>Teleport to city <white>#${city.id}'>" +
-                "<green>[${c.minX} ${c.minY} ${c.minZ}]</green></hover></click> " +
-                "<dark_gray>• ${city.pieces.size} pieces"
+        val comp = plugin.messages.get(
+            "discovery.found",
+            "id" to city.id, "world" to city.world,
+            "x" to c.minX, "y" to c.minY, "z" to c.minZ,
+            "pieces" to city.pieces.size,
         )
         plugin.scheduler.runTask(Runnable {
             plugin.server.onlinePlayers

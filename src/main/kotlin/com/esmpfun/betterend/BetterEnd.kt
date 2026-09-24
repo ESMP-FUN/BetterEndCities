@@ -13,6 +13,7 @@ import com.esmpfun.betterend.managers.CityManager
 import com.esmpfun.betterend.managers.ContainerLootManager
 import com.esmpfun.betterend.managers.ElytraClaimManager
 import com.esmpfun.betterend.managers.SnapshotManager
+import com.esmpfun.betterend.messages.Messages
 import com.esmpfun.betterend.scheduler.SchedulerAdapter
 import com.esmpfun.betterend.setup.SetupReminderListener
 import kotlinx.coroutines.CancellationException
@@ -55,6 +56,9 @@ class BetterEnd : JavaPlugin() {
     lateinit var snapshotManager: SnapshotManager
         private set
 
+    lateinit var messages: Messages
+        private set
+
     private var lootListener: ContainerLootListener? = null
 
     val snapshotsDir: File by lazy { File(dataFolder, "snapshots").apply { mkdirs() } }
@@ -75,6 +79,7 @@ class BetterEnd : JavaPlugin() {
 
     override fun onEnable() {
         saveDefaultConfig()
+        messages = Messages(this).apply { load() }
         scheduler = SchedulerAdapter.create(this)
 
         logger.info("Better End Cities starting on ${if (scheduler.isFolia) "Folia" else "Paper"}...")
@@ -89,7 +94,7 @@ class BetterEnd : JavaPlugin() {
         // Must happen inside onEnable: Paper stops accepting lifecycle handlers
         // once enable returns, and a throw from a later task would leave isReady false.
         @Suppress("UnstableApiUsage")
-        registerCommand("betterend", "Better End Cities admin command & config menu", BeCommand(this))
+        registerCommand("betterend", messages.raw("command.description"), BeCommand(this))
 
         launchAsync {
             try {
@@ -105,7 +110,7 @@ class BetterEnd : JavaPlugin() {
                     server.pluginManager.registerEvents(ProtectionListener(this@BetterEnd), this@BetterEnd)
                     server.pluginManager.registerEvents(ElytraFrameListener(this@BetterEnd), this@BetterEnd)
                     server.pluginManager.registerEvents(SetupReminderListener(this@BetterEnd), this@BetterEnd)
-                    server.pluginManager.registerEvents(VcGuiListener(), this@BetterEnd)
+                    server.pluginManager.registerEvents(VcGuiListener(this@BetterEnd), this@BetterEnd)
 
                     // Set before the optional integrations, so a throw from one can't leave the plugin inert.
                     isReady = true

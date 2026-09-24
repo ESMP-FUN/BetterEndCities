@@ -16,10 +16,10 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class ElytraClaimManager(private val plugin: BetterEnd) {
 
-    enum class ClaimMode(val key: String, val label: String) {
-        PER_SHIP("per-ship", "Once per ship"),
-        PER_REFRESH("per-refresh", "Again after each loot refresh"),
-        GLOBAL("global", "Once per player, total");
+    enum class ClaimMode(val key: String) {
+        PER_SHIP("per-ship"),
+        PER_REFRESH("per-refresh"),
+        GLOBAL("global");
 
         companion object {
             fun fromConfig(raw: String?): ClaimMode =

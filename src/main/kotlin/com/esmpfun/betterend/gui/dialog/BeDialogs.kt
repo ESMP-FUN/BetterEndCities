@@ -26,13 +26,13 @@ object BeDialogs {
     // Input keys reject dots and dashes, so config paths are sanitised here and mapped back on save.
     private fun String.dialogKey(): String = replace(Regex("[^A-Za-z0-9_]"), "_")
 
-    fun toggle(key: String, label: String, initial: Boolean): DialogInput =
-        DialogInput.bool(key.dialogKey(), Component.text(label)).initial(initial).build()
+    fun toggle(key: String, label: Component, initial: Boolean): DialogInput =
+        DialogInput.bool(key.dialogKey(), label).initial(initial).build()
 
     // The client shows min + n*step in doubles, so only steps like 0.25, 0.5 or 1 display cleanly.
-    fun slider(key: String, label: String, min: Float, max: Float, step: Float, initial: Float): DialogInput {
+    fun slider(key: String, label: Component, min: Float, max: Float, step: Float, initial: Float): DialogInput {
         val snapped = (min + Math.round((initial.coerceIn(min, max) - min) / step) * step).coerceIn(min, max)
-        return DialogInput.numberRange(key.dialogKey(), Component.text(label), min, max)
+        return DialogInput.numberRange(key.dialogKey(), label, min, max)
             .step(step)
             .initial(snapped)
             .labelFormat("%s: %s")
@@ -40,29 +40,41 @@ object BeDialogs {
             .build()
     }
 
-    fun text(key: String, label: String, initial: String, maxLength: Int = 64): DialogInput =
-        DialogInput.text(key.dialogKey(), Component.text(label))
+    fun text(key: String, label: Component, initial: String, maxLength: Int = 64): DialogInput =
+        DialogInput.text(key.dialogKey(), label)
             .initial(initial)
             .maxLength(maxLength)
             .width(300)
             .build()
 
     /** A pick-one input; the chosen [Choice.id] comes back via `getText(key)`. */
-    data class Choice(val id: String, val label: String)
+    data class Choice(val id: String, val label: Component)
 
-    fun singleOption(key: String, label: String, choices: List<Choice>, selectedId: String): DialogInput =
+    fun singleOption(key: String, label: Component, choices: List<Choice>, selectedId: String): DialogInput =
         DialogInput.singleOption(
             key.dialogKey(),
-            Component.text(label),
-            choices.map { SingleOptionDialogInput.OptionEntry.create(it.id, Component.text(it.label), it.id == selectedId) },
+            label,
+            choices.map { SingleOptionDialogInput.OptionEntry.create(it.id, it.label, it.id == selectedId) },
         ).width(220).build()
+
+    /** The "Who can claim, how often" choices. */
+    fun claimModes(plugin: BetterEnd): List<Choice> =
+        ElytraClaimManager.ClaimMode.entries.map { Choice(it.key, plugin.messages.get("claim-modes.${it.key}")) }
+
+    /** A dialog title, dark aqua unless the message sets a colour. */
+    fun title(plugin: BetterEnd, key: String, vararg values: Pair<String, Any?>): Component =
+        plugin.messages.get(key, *values).colorIfAbsent(NamedTextColor.DARK_AQUA)
+
+    /** Dialog body lines, grey unless the message sets a colour. */
+    fun body(plugin: BetterEnd, key: String, vararg values: Pair<String, Any?>): List<DialogBody> =
+        plugin.messages.lines(key, *values).map { DialogBody.plainMessage(it.colorIfAbsent(NamedTextColor.GRAY)) }
 
     /** A settings page with Back, Save, Save & Close and Close; [onSave] runs for both saves. */
     fun showSettings(
         plugin: BetterEnd,
         player: Player,
-        title: String,
-        body: List<String>,
+        page: String,
+        body: List<DialogBody>,
         inputs: List<DialogInput>,
         extraButtons: List<ActionButton> = emptyList(),
         needsRestart: Boolean = false,
@@ -81,31 +93,28 @@ object BeDialogs {
                 plugin.saveConfig()
                 ElytraFrameListener.refreshLoaded(plugin)
             })
-            player.sendMessage(
-                if (needsRestart) Component.text("Settings saved. They take effect the next time the server starts.", NamedTextColor.GREEN)
-                else Component.text("Settings saved & applied.", NamedTextColor.GREEN)
-            )
+            player.sendMessage(plugin.messages.get(if (needsRestart) "menu.saved-restart" else "menu.saved"))
         }
 
-        val back = button("Back", NamedTextColor.YELLOW, "Return to the Better End Cities menu (without saving)") { _ ->
+        val back = button(plugin, "menu.buttons.back", NamedTextColor.YELLOW) { _ ->
             plugin.scheduler.runAtEntity(player, Runnable {
                 if (player.isOnline) openMainMenu(plugin, player)
             })
         }
-        val save = button("Save", NamedTextColor.GREEN, "Save, apply and return to the menu") { view ->
+        val save = button(plugin, "menu.buttons.save", NamedTextColor.GREEN) { view ->
             saveAndApply(view)
             plugin.scheduler.runAtEntity(player, Runnable {
                 if (player.isOnline) openMainMenu(plugin, player)
             })
         }
-        val saveClose = button("Save & Close", NamedTextColor.DARK_GREEN, "Save, apply, and close") { view ->
+        val saveClose = button(plugin, "menu.buttons.save-close", NamedTextColor.DARK_GREEN) { view ->
             saveAndApply(view)
             player.closeDialog()
         }
-        val close = closeButton(player, "Close", "Close without saving")
+        val close = closeButton(plugin, player, "menu.buttons.close")
 
-        val base = DialogBase.builder(Component.text(title, NamedTextColor.DARK_AQUA))
-            .body(body.map { DialogBody.plainMessage(Component.text(it, NamedTextColor.GRAY)) })
+        val base = DialogBase.builder(title(plugin, "$page.title"))
+            .body(body)
             .inputs(inputs)
             // NONE keeps the screen up so pages swap without closing, which means
             // an exit button must close itself (see closeButton). A pausing dialog
@@ -124,13 +133,13 @@ object BeDialogs {
     }
 
     fun button(
-        label: String,
+        label: Component,
         color: NamedTextColor,
-        tooltip: String,
+        tooltip: Component,
         onClick: ((DialogResponseView) -> Unit)?,
     ): ActionButton {
-        val b = ActionButton.builder(Component.text(label, color))
-            .tooltip(Component.text(tooltip))
+        val b = ActionButton.builder(label.colorIfAbsent(color))
+            .tooltip(tooltip)
             .width(120)
         if (onClick != null) {
             b.action(
@@ -144,54 +153,53 @@ object BeDialogs {
         return b.build()
     }
 
+    /** A button whose text comes from the `label` and `tooltip` messages under [key]. */
+    fun button(
+        plugin: BetterEnd,
+        key: String,
+        color: NamedTextColor,
+        vararg values: Pair<String, Any?>,
+        onClick: ((DialogResponseView) -> Unit)?,
+    ): ActionButton =
+        button(plugin.messages.get("$key.label", *values), color, plugin.messages.get("$key.tooltip", *values), onClick)
+
     /** With after-action NONE a button without an action does nothing, so exits close explicitly. */
-    fun closeButton(player: Player, label: String, tooltip: String): ActionButton =
-        button(label, NamedTextColor.RED, tooltip) { player.closeDialog() }
+    fun closeButton(plugin: BetterEnd, player: Player, key: String): ActionButton =
+        button(plugin, key, NamedTextColor.RED) { player.closeDialog() }
 
     // ── the /betterend menu ──────────────────────────────────────────────────
 
     fun openMainMenu(plugin: BetterEnd, player: Player) {
+        val m = plugin.messages
         val cities = plugin.cityManager.all().size
-        val mode = plugin.elytraClaimManager.mode().label
         val cost = plugin.elytraClaimManager.costStack()
 
-        fun page(label: String, color: NamedTextColor, tooltip: String, open: (BetterEnd, Player) -> Unit) =
-            button(label, color, tooltip) { _ ->
+        fun page(key: String, color: NamedTextColor, open: (BetterEnd, Player) -> Unit) =
+            button(plugin, "menu.main.buttons.$key", color) { _ ->
                 plugin.scheduler.runAtEntity(player, Runnable { if (player.isOnline) open(plugin, player) })
             }
 
-        val elytra = page("Elytra Frames", NamedTextColor.AQUA, "Who can claim, what it costs, and the frame's hint", ::openElytra)
-        val loot = page("Per-player Loot", NamedTextColor.LIGHT_PURPLE, "Everyone's own chest copies and how often they refresh", ::openLoot)
-        val protection = page("Protection", NamedTextColor.RED, "What players can and can't break or build in a city", ::openProtection)
-        val discovery = page("Finding Cities & Resets", NamedTextColor.DARK_PURPLE, "Finding cities, saved copies and putting blocks back", ::openDiscovery)
-        val storage = page("Storage", NamedTextColor.GRAY, "Where the plugin keeps its data (SQLite or MySQL)", ::openStorage)
-        val updates = page("Updates & Stats", NamedTextColor.GRAY, "Update checks, anonymous stats and extra logging", ::openUpdates)
-        val costItem = button("Choose Cost Item", NamedTextColor.GOLD, "Pick which item an elytra claim costs, straight from your inventory") { _ ->
+        val elytra = page("elytra", NamedTextColor.AQUA, ::openElytra)
+        val loot = page("loot", NamedTextColor.LIGHT_PURPLE, ::openLoot)
+        val protection = page("protection", NamedTextColor.RED, ::openProtection)
+        val discovery = page("discovery", NamedTextColor.DARK_PURPLE, ::openDiscovery)
+        val storage = page("storage", NamedTextColor.GRAY, ::openStorage)
+        val updates = page("updates", NamedTextColor.GRAY, ::openUpdates)
+        val costItem = button(plugin, "menu.buttons.cost-item", NamedTextColor.GOLD) { _ ->
             player.closeDialog()
             plugin.scheduler.runAtEntity(player, Runnable {
                 if (player.isOnline) CurrencyPickerView(plugin).open(player)
             })
         }
-        val setup = button("Setup Tour", NamedTextColor.GREEN, "Walk through every setting, one plain question at a time") { _ ->
-            plugin.scheduler.runAtEntity(player, Runnable {
-                if (player.isOnline) com.esmpfun.betterend.setup.SetupTour.start(plugin, player)
-            })
-        }
-        val close = closeButton(player, "Close", "Close the menu")
+        val setup = page("setup", NamedTextColor.GREEN) { p, pl -> com.esmpfun.betterend.setup.SetupTour.start(p, pl) }
+        val close = closeButton(plugin, player, "menu.main.buttons.close")
 
-        val costLine = if (cost == null) "Claims are currently free."
-        else "A claim currently costs ${cost.amount} x ${cost.type.name.lowercase().replace('_', ' ')}."
+        val cityCount = if (cities == 1) m.get("menu.main.cities-one") else m.get("menu.main.cities", "count" to cities)
+        val costLine = if (cost == null) m.get("menu.main.cost-free")
+        else m.get("menu.main.cost", "amount" to cost.amount, "item" to itemName(cost))
 
-        val base = DialogBase.builder(Component.text("Better End Cities", NamedTextColor.DARK_AQUA))
-            .body(
-                listOf(
-                    "Renewable End Cities: every player earns their own elytra",
-                    "and their own loot, and the structures reset themselves.",
-                    "",
-                    "$cities End ${if (cities == 1) "City" else "Cities"} registered • Elytra: $mode",
-                    costLine,
-                ).map { DialogBody.plainMessage(Component.text(it, NamedTextColor.GRAY)) }
-            )
+        val base = DialogBase.builder(title(plugin, "menu.main.title"))
+            .body(body(plugin, "menu.main.body", "cities" to cityCount, "mode" to m.get("claim-modes.${plugin.elytraClaimManager.mode().key}"), "cost" to costLine))
             .pause(false)
             .canCloseWithEscape(true)
             .afterAction(DialogBase.DialogAfterAction.NONE)
@@ -204,51 +212,44 @@ object BeDialogs {
         player.showDialog(dialog)
     }
 
+    /** "shulker shell" for the cost item's type. */
+    fun itemName(item: org.bukkit.inventory.ItemStack): String = item.type.name.lowercase().replace('_', ' ')
+
     // ── feature dialogs ──────────────────────────────────────────────────────
 
     // The amount slider tops out at the cost item's stack size. The item itself is picked in CurrencyPickerView.
     fun openElytra(plugin: BetterEnd, player: Player) {
+        val m = plugin.messages
         val cfg = plugin.config
         val item = plugin.elytraClaimManager.costItemOrDefault()
-        val itemName = item.type.name.lowercase().replace('_', ' ')
+        val itemName = itemName(item)
         val maxStack = item.maxStackSize
         val currentAmount = cfg.getInt("elytra.cost.amount", 0).coerceIn(0, maxStack)
         val currentMode = ElytraClaimManager.ClaimMode.fromConfig(cfg.getString("elytra.claim-mode"))
 
-        val pickItem = button("Choose Cost Item", NamedTextColor.GOLD, "Pick the cost item from your inventory (unsaved edits here are discarded)") { _ ->
+        val pickItem = button(
+            m.get("menu.buttons.cost-item.label"), NamedTextColor.GOLD, m.get("menu.elytra.cost-item-tooltip"),
+        ) { _ ->
             player.closeDialog()
             plugin.scheduler.runAtEntity(player, Runnable {
                 if (player.isOnline) CurrencyPickerView(plugin).open(player)
             })
         }
 
+        val label = { key: String -> m.get("menu.elytra.inputs.$key") }
         showSettings(
             plugin = plugin,
             player = player,
-            title = "Elytra Frames",
-            body = listOf(
-                "The ship's elytra item frame becomes renewable: punching it",
-                "puts an elytra in your inventory and the frame stays for the",
-                "next player. Vanilla feel, nothing to relearn.",
-                "",
-                "Cost: 0 = free. Otherwise a claim consumes that many of the",
-                "chosen item (currently: $itemName, stacks to $maxStack).",
-                "XP levels are taken on top of the item. With doubling on,",
-                "each elytra a player buys costs twice the one before, until",
-                "a loot refresh window has passed since that purchase.",
-            ),
+            page = "menu.elytra",
+            body = body(plugin, "menu.elytra.body", "item" to itemName, "stack" to maxStack),
             inputs = listOf(
-                toggle("elytra.enabled", "Feature enabled", cfg.getBoolean("elytra.enabled", true)),
-                singleOption(
-                    "elytra.claim-mode", "Who can claim, how often",
-                    ElytraClaimManager.ClaimMode.entries.map { Choice(it.key, it.label) },
-                    currentMode.key,
-                ),
-                slider("elytra.cost.amount", "Cost ($itemName, 0 = free)", 0f, maxStack.toFloat(), 1f, currentAmount.toFloat()),
-                levelsSlider(cfg.getInt("elytra.cost.levels", 0)),
-                toggle("elytra.cost.double-each-claim", "Price doubles with each elytra bought", cfg.getBoolean("elytra.cost.double-each-claim", false)),
-                toggle("elytra.text-display", "Floating hint above the frame", cfg.getBoolean("elytra.text-display", true)),
-                toggle("elytra.frame-aura", "Shimmer around the frame when a player is near", cfg.getBoolean("elytra.frame-aura", false)),
+                toggle("elytra.enabled", label("enabled"), cfg.getBoolean("elytra.enabled", true)),
+                singleOption("elytra.claim-mode", label("claim-mode"), claimModes(plugin), currentMode.key),
+                slider("elytra.cost.amount", m.get("menu.elytra.inputs.cost-amount", "item" to itemName), 0f, maxStack.toFloat(), 1f, currentAmount.toFloat()),
+                levelsSlider(label("cost-levels"), cfg.getInt("elytra.cost.levels", 0)),
+                toggle("elytra.cost.double-each-claim", label("double-each-claim"), cfg.getBoolean("elytra.cost.double-each-claim", false)),
+                toggle("elytra.text-display", label("text-display"), cfg.getBoolean("elytra.text-display", true)),
+                toggle("elytra.frame-aura", label("frame-aura"), cfg.getBoolean("elytra.frame-aura", false)),
             ),
             extraButtons = listOf(pickItem),
         ) { view ->
@@ -264,39 +265,31 @@ object BeDialogs {
 
     // The slider tops out at 100 levels, or higher when config.yml already
     // holds more, so opening and saving never lowers a hand-set price.
-    fun levelsSlider(current: Int): DialogInput =
-        slider("elytra.cost.levels", "XP levels per claim (0 = none)", 0f, maxOf(100, current).toFloat(), 1f, current.toFloat())
+    fun levelsSlider(label: Component, current: Int): DialogInput =
+        slider("elytra.cost.levels", label, 0f, maxOf(100, current).toFloat(), 1f, current.toFloat())
 
-    fun refreshSlider(label: String, current: Int): DialogInput =
+    fun refreshSlider(label: Component, current: Int): DialogInput =
         slider("loot.refresh-hours", label, 0f, maxOf(168, current).toFloat(), 1f, current.toFloat())
 
-    val SCOPES = listOf(
-        Choice("whole-city", "The whole city"),
-        Choice("ship-only", "Only the ship and the city's chests"),
-    )
+    private val SCOPE_IDS = listOf("whole-city", "ship-only")
 
-    fun scopeKey(raw: String?): String = SCOPES.firstOrNull { it.id.equals(raw, ignoreCase = true) }?.id ?: "whole-city"
+    fun scopes(plugin: BetterEnd): List<Choice> =
+        SCOPE_IDS.map { Choice(it, plugin.messages.get("menu.protection.scopes.$it")) }
+
+    fun scopeKey(raw: String?): String = SCOPE_IDS.firstOrNull { it.equals(raw, ignoreCase = true) } ?: "whole-city"
 
     /** Per-player chest loot and its refresh window. */
     fun openLoot(plugin: BetterEnd, player: Player) {
+        val m = plugin.messages
         val cfg = plugin.config
         showSettings(
             plugin = plugin,
             player = player,
-            title = "Per-player Loot",
-            body = listOf(
-                "Every player who opens a city chest gets their own private",
-                "copy of what's inside, so the first player through no longer",
-                "empties the city for everyone else. Chests players place",
-                "themselves stay normal and shared.",
-                "",
-                "Refresh window: how many hours before a city's loot comes",
-                "back. Each city counts down on its own, starting when someone",
-                "first loots it. 0 = never, so each player loots each chest once.",
-            ),
+            page = "menu.loot",
+            body = body(plugin, "menu.loot.body"),
             inputs = listOf(
-                toggle("loot.enabled", "Per-player chest loot", cfg.getBoolean("loot.enabled", true)),
-                refreshSlider("Refresh window (hours, 0 = never)", cfg.getInt("loot.refresh-hours", 12)),
+                toggle("loot.enabled", m.get("menu.loot.inputs.enabled"), cfg.getBoolean("loot.enabled", true)),
+                refreshSlider(m.get("menu.loot.inputs.refresh-hours"), cfg.getInt("loot.refresh-hours", 12)),
             ),
         ) { view ->
             view.getBoolean("loot.enabled")?.let { cfg.set("loot.enabled", it) }
@@ -308,33 +301,20 @@ object BeDialogs {
     fun openProtection(plugin: BetterEnd, player: Player) {
         val cfg = plugin.config
         val padding = cfg.getInt("protection.piece-padding", 3)
+        val label = { key: String -> plugin.messages.get("menu.protection.inputs.$key") }
         showSettings(
             plugin = plugin,
             player = player,
-            title = "Protection",
-            body = listOf(
-                "Stops players griefing cities. Every block in a tower, a",
-                "bridge or the ship is protected, whatever the block is. The",
-                "empty space between towers stays free to build in.",
-                "",
-                "'Only the ship' leaves towers and bridges open, but still",
-                "guards the ship and the city's loot chests.",
-                "",
-                "Reach past each tower: how many blocks of protection extend",
-                "beyond a tower's walls, to cover its trim. 3 fits vanilla",
-                "cities. Higher starts protecting empty space nearby.",
-                "",
-                "Staff with the betterend.bypass.protection permission are",
-                "never stopped.",
-            ),
+            page = "menu.protection",
+            body = body(plugin, "menu.protection.body"),
             inputs = listOf(
-                toggle("protection.enabled", "Grief protection", cfg.getBoolean("protection.enabled", true)),
-                singleOption("protection.scope", "What is protected", SCOPES, scopeKey(cfg.getString("protection.scope"))),
-                toggle("protection.dragon-head-takeable", "Players may take the ship's dragon head (once, for good)", cfg.getBoolean("protection.dragon-head-takeable", false)),
-                slider("protection.piece-padding", "Reach past each tower (blocks)", 0f, maxOf(16, padding).toFloat(), 1f, padding.toFloat()),
-                toggle("protection.block-place", "Also stop players building inside", cfg.getBoolean("protection.block-place", true)),
-                toggle("protection.block-explosions", "Also protect from creepers, TNT and other explosions", cfg.getBoolean("protection.block-explosions", true)),
-                toggle("protection.notify-denied", "Tell players why their break or build was stopped", cfg.getBoolean("protection.notify-denied", true)),
+                toggle("protection.enabled", label("enabled"), cfg.getBoolean("protection.enabled", true)),
+                singleOption("protection.scope", label("scope"), scopes(plugin), scopeKey(cfg.getString("protection.scope"))),
+                toggle("protection.dragon-head-takeable", label("dragon-head-takeable"), cfg.getBoolean("protection.dragon-head-takeable", false)),
+                slider("protection.piece-padding", label("piece-padding"), 0f, maxOf(16, padding).toFloat(), 1f, padding.toFloat()),
+                toggle("protection.block-place", label("block-place"), cfg.getBoolean("protection.block-place", true)),
+                toggle("protection.block-explosions", label("block-explosions"), cfg.getBoolean("protection.block-explosions", true)),
+                toggle("protection.notify-denied", label("notify-denied"), cfg.getBoolean("protection.notify-denied", true)),
             ),
         ) { view ->
             listOf(
@@ -349,37 +329,26 @@ object BeDialogs {
     /** City discovery and snapshots. */
     fun openDiscovery(plugin: BetterEnd, player: Player) {
         val cfg = plugin.config
+        val label = { key: String -> plugin.messages.get("menu.discovery.inputs.$key") }
         val excluded = cfg.getStringList("discovery.excluded-worlds").joinToString(", ")
         // Shown in millions: a whole-block count doesn't fit a slider.
         val maxCells = cfg.getInt("snapshot.max-cells", 3_000_000)
         val maxMillions = maxCells / 1_000_000f
         val cellsSlider = slider(
-            "snapshot.max-cells", "Largest saved copy (millions of blocks)",
+            "snapshot.max-cells", label("max-cells"),
             0.5f, maxOf(10f, maxMillions), 0.25f, maxMillions,
         )
         showSettings(
             plugin = plugin,
             player = player,
-            title = "Finding Cities & Resets",
-            body = listOf(
-                "Cities register themselves as players travel near them, and",
-                "start working straight away.",
-                "",
-                "Worlds to leave alone: world names, separated by commas, whose",
-                "cities should behave exactly like vanilla. Cities already",
-                "registered there keep working until you /betterend delete them.",
-                "",
-                "A saved copy of each city lets /betterend reset put its blocks",
-                "back. Putting blocks back on every loot refresh can suffocate",
-                "players inside and erases anything built there, so it's off",
-                "by default. The size limit is far above any real city.",
-            ),
+            page = "menu.discovery",
+            body = body(plugin, "menu.discovery.body"),
             inputs = listOf(
-                toggle("discovery.enabled", "Register new End Cities automatically", cfg.getBoolean("discovery.enabled", true)),
-                toggle("discovery.startup-sweep", "Also check areas already loaded at startup", cfg.getBoolean("discovery.startup-sweep", true)),
-                text("discovery.excluded-worlds", "Worlds to leave alone (comma separated)", excluded, 512),
-                toggle("snapshot.auto-capture", "Save a copy of each city when it's found", cfg.getBoolean("snapshot.auto-capture", true)),
-                toggle("snapshot.auto-reset-on-refresh", "Put blocks back on every loot refresh", cfg.getBoolean("snapshot.auto-reset-on-refresh", false)),
+                toggle("discovery.enabled", label("enabled"), cfg.getBoolean("discovery.enabled", true)),
+                toggle("discovery.startup-sweep", label("startup-sweep"), cfg.getBoolean("discovery.startup-sweep", true)),
+                text("discovery.excluded-worlds", label("excluded-worlds"), excluded, 512),
+                toggle("snapshot.auto-capture", label("auto-capture"), cfg.getBoolean("snapshot.auto-capture", true)),
+                toggle("snapshot.auto-reset-on-refresh", label("auto-reset-on-refresh"), cfg.getBoolean("snapshot.auto-reset-on-refresh", false)),
                 cellsSlider,
             ),
         ) { view ->
@@ -400,35 +369,23 @@ object BeDialogs {
 
     /** Database backend. Read once at startup. */
     fun openStorage(plugin: BetterEnd, player: Player) {
+        val m = plugin.messages
         val cfg = plugin.config
-        val types = listOf(
-            Choice("sqlite", "SQLite: a file on this server, no setup"),
-            Choice("mysql", "MySQL: a database server you run"),
-        )
+        val label = { key: String -> m.get("menu.storage.inputs.$key") }
+        val types = listOf("sqlite", "mysql").map { Choice(it, m.get("menu.storage.types.$it")) }
         val current = if (cfg.getString("database.type", "sqlite").equals("mysql", ignoreCase = true)) "mysql" else "sqlite"
         showSettings(
             plugin = plugin,
             player = player,
-            title = "Storage",
-            body = listOf(
-                "Where the plugin remembers your cities, who has claimed an",
-                "elytra, and everyone's loot. SQLite needs nothing and is right",
-                "for almost every server. Use MySQL only if several servers",
-                "need to share one End.",
-                "",
-                "The MySQL fields are ignored while SQLite is chosen. Leave the",
-                "password empty to keep the one already saved.",
-                "",
-                "Switching starts from an empty database: nothing is copied",
-                "across. Changes here take effect after a restart.",
-            ),
+            page = "menu.storage",
+            body = body(plugin, "menu.storage.body"),
             inputs = listOf(
-                singleOption("database.type", "Storage", types, current),
-                text("database.mysql.host", "MySQL address", cfg.getString("database.mysql.host", "localhost") ?: "localhost", 255),
-                text("database.mysql.port", "MySQL port (usually 3306)", cfg.getInt("database.mysql.port", 3306).toString(), 5),
-                text("database.mysql.database", "MySQL database name", cfg.getString("database.mysql.database", "betterend") ?: "betterend", 64),
-                text("database.mysql.username", "MySQL username", cfg.getString("database.mysql.username", "root") ?: "root", 64),
-                text("database.mysql.password", "MySQL password (empty = keep current)", "", 128),
+                singleOption("database.type", label("type"), types, current),
+                text("database.mysql.host", label("host"), cfg.getString("database.mysql.host", "localhost") ?: "localhost", 255),
+                text("database.mysql.port", label("port"), cfg.getInt("database.mysql.port", 3306).toString(), 5),
+                text("database.mysql.database", label("database"), cfg.getString("database.mysql.database", "betterend") ?: "betterend", 64),
+                text("database.mysql.username", label("username"), cfg.getString("database.mysql.username", "root") ?: "root", 64),
+                text("database.mysql.password", label("password"), "", 128),
             ),
             needsRestart = true,
         ) { view ->
@@ -439,7 +396,7 @@ object BeDialogs {
             view.getText("database.mysql.port")?.trim()?.let { raw ->
                 val port = raw.toIntOrNull()
                 if (port != null && port in 1..65535) cfg.set("database.mysql.port", port)
-                else player.sendMessage(Component.text("'$raw' isn't a port number (1 to 65535), so the port was left unchanged.", NamedTextColor.YELLOW))
+                else player.sendMessage(m.get("menu.storage.bad-port", "value" to raw))
             }
             view.getText("database.mysql.password")?.takeIf { it.isNotEmpty() }?.let { cfg.set("database.mysql.password", it) }
         }
@@ -447,42 +404,27 @@ object BeDialogs {
 
     /** Update checks (read once at startup), metrics and logging. */
     fun openUpdates(plugin: BetterEnd, player: Player) {
+        val m = plugin.messages
         val cfg = plugin.config
-        val modes = listOf(
-            Choice("off", "Off: never check"),
-            Choice("check-only", "Check quietly (see /betterend update)"),
-            Choice("notify", "Tell staff, who can download it"),
-            Choice("auto-stage", "Download it for the next restart by itself"),
-        )
+        val label = { key: String -> m.get("menu.updates.inputs.$key") }
+        val modes = listOf("off", "check-only", "notify", "auto-stage").map { Choice(it, m.get("menu.updates.modes.$it")) }
         // "download" behaves exactly like "notify", so it isn't offered and shows as notify.
-        val mode = cfg.getString("update.mode", "notify")?.lowercase().let { m -> modes.firstOrNull { it.id == m }?.id } ?: "notify"
+        val mode = cfg.getString("update.mode", "notify")?.lowercase().let { md -> modes.firstOrNull { it.id == md }?.id } ?: "notify"
         val interval = cfg.getInt("update.check-interval-hours", 6)
         val holdHours = cfg.getInt("update.hold-new-updates-hours", 18)
         showSettings(
             plugin = plugin,
             player = player,
-            title = "Updates & Stats",
-            body = listOf(
-                "Updates: how the plugin handles a new version. Waiting on a",
-                "brand-new release skips one that turns out broken and gets",
-                "fixed within hours.",
-                "",
-                "Anonymous stats count which settings are in use. Error reports",
-                "send this plugin's own errors with IP addresses, file paths,",
-                "passwords and player ids removed. Neither includes anything",
-                "about your players or your world.",
-                "",
-                "Changes on this page take effect after a restart, except extra",
-                "logging, which applies at once.",
-            ),
+            page = "menu.updates",
+            body = body(plugin, "menu.updates.body"),
             inputs = listOf(
-                singleOption("update.mode", "When a new version comes out", modes, mode),
-                slider("update.check-interval-hours", "Check every (hours)", 1f, maxOf(48, interval).toFloat(), 1f, interval.toFloat()),
-                toggle("update.hold-new-updates", "Wait before taking a brand-new release", cfg.getBoolean("update.hold-new-updates", false)),
-                slider("update.hold-new-updates-hours", "How long to wait (hours)", 1f, maxOf(72, holdHours).toFloat(), 1f, holdHours.toFloat()),
-                toggle("metrics.enabled", "Send anonymous usage stats", cfg.getBoolean("metrics.enabled", true)),
-                toggle("metrics.error-reporting", "Send automatic error reports", cfg.getBoolean("metrics.error-reporting", true)),
-                toggle("debug.verbose-logging", "Extra logging (noisy, for bug reports)", cfg.getBoolean("debug.verbose-logging", false)),
+                singleOption("update.mode", label("mode"), modes, mode),
+                slider("update.check-interval-hours", label("check-interval-hours"), 1f, maxOf(48, interval).toFloat(), 1f, interval.toFloat()),
+                toggle("update.hold-new-updates", label("hold-new-updates"), cfg.getBoolean("update.hold-new-updates", false)),
+                slider("update.hold-new-updates-hours", label("hold-new-updates-hours"), 1f, maxOf(72, holdHours).toFloat(), 1f, holdHours.toFloat()),
+                toggle("metrics.enabled", label("metrics"), cfg.getBoolean("metrics.enabled", true)),
+                toggle("metrics.error-reporting", label("error-reporting"), cfg.getBoolean("metrics.error-reporting", true)),
+                toggle("debug.verbose-logging", label("verbose-logging"), cfg.getBoolean("debug.verbose-logging", false)),
             ),
             needsRestart = true,
         ) { view ->

@@ -45,7 +45,7 @@ Other elytra plugins swap the ship's item frame for a vault block, then make you
 | `/betterend resetloot <id> <player>` | Let one player loot it again |
 | `/betterend clearclaims <id>` | Let everyone claim the elytra again |
 | `/betterend delete <id>` | Stop managing this city |
-| `/betterend reload` | Re-read `config.yml` |
+| `/betterend reload` | Re-read `config.yml` and `messages.yml` |
 
 ## Permissions
 
