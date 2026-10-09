@@ -251,6 +251,7 @@ class ElytraFrameListener(private val plugin: BetterEnd) : Listener {
         val elytra = ItemStack(Material.ELYTRA)
         AntiDupeCompat.tagOwner(elytra, player.uniqueId)
         giveOrDrop(player, elytra)
+        AntiDupeCompat.recordGrant(player.uniqueId, Material.ELYTRA, 1)
 
         plugin.elytraClaimManager.record(city.id, player.uniqueId)
         player.sendActionBar(plugin.messages.get("elytra.claimed"))

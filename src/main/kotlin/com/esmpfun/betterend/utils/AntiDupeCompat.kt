@@ -55,6 +55,18 @@ object AntiDupeCompat {
         return keys.toList()
     }
 
+    /**
+     * Tells Better Anti-Dupe's ledger that [owner] was handed [amount] of [material] by this
+     * plugin, so it isn't flagged as a dupe. Older versions without the hook are skipped.
+     */
+    fun recordGrant(owner: UUID, material: Material, amount: Int) {
+        val plugin = adp() ?: return
+        runCatching {
+            plugin.javaClass.getMethod("recordGrant", UUID::class.java, Material::class.java, Int::class.javaPrimitiveType, String::class.java)
+                .invoke(plugin, owner, material, amount, "BetterEndCities")
+        }
+    }
+
     /** Stamps [item] as owned by [owner] under the primary key. No-op when the plugin is absent. */
     fun tagOwner(item: ItemStack, owner: UUID) {
         val primary = ownershipKeys().firstOrNull() ?: return
