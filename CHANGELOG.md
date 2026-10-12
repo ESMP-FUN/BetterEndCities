@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
-## [Unreleased]
+## [0.5.1] - 2026-10-12
 ### Fixed
 - **Elytras bought from a frame no longer get flagged as dupes.** Better Anti-Dupe is now told about each one, so its records match what the player holds. Needs Better Anti-Dupe 4.5.3 or newer; older versions are left alone.
 
